@@ -1,0 +1,73 @@
+{
+  "name": "Joy Journey",
+  "category": "bliss",
+  "description": "Uplifting experience of expansive joy and lightness",
+  "duration_minutes": 45,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Grounding",
+      "start_min": 0,
+      "end_min": 8,
+      "frequency": { "start": 40, "end": 42 },
+      "support_frequency": { "start": 36, "end": 38 },
+      "amplitude": { "start": 0.0, "end": 0.6 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Rising Joy",
+      "start_min": 8,
+      "end_min": 20,
+      "frequency": { "start": 42, "end": 55 },
+      "support_frequency": { "start": 38, "end": 50 },
+      "amplitude": { "start": 0.6, "end": 0.7 },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.2,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10.0
+    },
+    {
+      "name": "Bliss Peak",
+      "start_min": 20,
+      "end_min": 32,
+      "frequency": { "start": 55, "end": 60 },
+      "support_frequency": { "start": 50, "end": 55 },
+      "amplitude": { "start": 0.7, "end": 0.75 },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.25,
+      "fm_rate": 0.12,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 11.0
+    },
+    {
+      "name": "Gentle Landing",
+      "start_min": 32,
+      "end_min": 45,
+      "frequency": { "start": 60, "end": 42 },
+      "support_frequency": { "start": 55, "end": 38 },
+      "amplitude": { "start": 0.75, "end": 0.0 },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.15,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

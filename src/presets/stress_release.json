@@ -1,0 +1,85 @@
+{
+  "name": "Stress Release",
+  "category": "relaxation",
+  "description": "Let go of accumulated tension with gradual descent into calm",
+  "duration_minutes": 60,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Acknowledge",
+      "start_min": 0,
+      "end_min": 10,
+      "frequency": { "start": 45, "end": 42 },
+      "support_frequency": { "start": 40, "end": 38 },
+      "amplitude": { "start": 0.0, "end": 0.7 },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.15,
+      "fm_rate": 0.1,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Soften",
+      "start_min": 10,
+      "end_min": 25,
+      "frequency": { "start": 42, "end": 35 },
+      "support_frequency": { "start": 38, "end": 32 },
+      "amplitude": { "start": 0.7, "end": 0.75 },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.25,
+      "fm_rate": 0.07,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Release",
+      "start_min": 25,
+      "end_min": 45,
+      "frequency": { "start": 35, "end": 32 },
+      "support_frequency": { "start": 32, "end": 28 },
+      "amplitude": { "start": 0.75, "end": 0.7 },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.3,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6.0
+    },
+    {
+      "name": "Rest",
+      "start_min": 45,
+      "end_min": 55,
+      "frequency": { "start": 32, "end": 38 },
+      "support_frequency": { "start": 28, "end": 34 },
+      "amplitude": { "start": 0.7, "end": 0.5 },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.15,
+      "fm_rate": 0.06,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Return",
+      "start_min": 55,
+      "end_min": 60,
+      "frequency": { "start": 38, "end": 42 },
+      "support_frequency": { "start": 34, "end": 38 },
+      "amplitude": { "start": 0.5, "end": 0.0 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

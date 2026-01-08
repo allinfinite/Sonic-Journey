@@ -1,0 +1,73 @@
+{
+  "name": "Morning Rise",
+  "category": "energy",
+  "description": "Gentle activation to start your day with vitality",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Awakening",
+      "start_min": 0,
+      "end_min": 8,
+      "frequency": { "start": 35, "end": 42 },
+      "support_frequency": { "start": 32, "end": 38 },
+      "amplitude": { "start": 0.0, "end": 0.6 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Rising",
+      "start_min": 8,
+      "end_min": 18,
+      "frequency": { "start": 42, "end": 55 },
+      "support_frequency": { "start": 38, "end": 50 },
+      "amplitude": { "start": 0.6, "end": 0.7 },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.2,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10.0
+    },
+    {
+      "name": "Vitality",
+      "start_min": 18,
+      "end_min": 25,
+      "frequency": { "start": 55, "end": 60 },
+      "support_frequency": { "start": 50, "end": 55 },
+      "amplitude": { "start": 0.7, "end": 0.65 },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.15,
+      "fm_rate": 0.12,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 11.0
+    },
+    {
+      "name": "Ready",
+      "start_min": 25,
+      "end_min": 30,
+      "frequency": { "start": 60, "end": 50 },
+      "support_frequency": { "start": 55, "end": 45 },
+      "amplitude": { "start": 0.65, "end": 0.0 },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.1,
+      "fm_rate": 0.1,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

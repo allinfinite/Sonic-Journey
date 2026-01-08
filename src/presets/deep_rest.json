@@ -1,0 +1,86 @@
+{
+  "name": "Deep Rest",
+  "category": "sleep",
+  "description": "Extended journey into deep, restorative rest",
+  "duration_minutes": 90,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -14,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Letting Go",
+      "start_min": 0,
+      "end_min": 15,
+      "frequency": { "start": 40, "end": 35 },
+      "support_frequency": { "start": 36, "end": 32 },
+      "amplitude": { "start": 0.0, "end": 0.6 },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Sinking",
+      "start_min": 15,
+      "end_min": 35,
+      "frequency": { "start": 35, "end": 30 },
+      "support_frequency": { "start": 32, "end": 28 },
+      "amplitude": { "start": 0.6, "end": 0.65 },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.15,
+      "fm_rate": 0.04,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4.0
+    },
+    {
+      "name": "Deep Sleep",
+      "start_min": 35,
+      "end_min": 70,
+      "frequency": { "start": 30, "end": 28 },
+      "support_frequency": { "start": 28, "end": 28 },
+      "amplitude": { "start": 0.65, "end": 0.6 },
+      "breath_cycle_sec": 22,
+      "fm_depth": 0.1,
+      "fm_rate": 0.03,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 2.5
+    },
+    {
+      "name": "Gentle Rising",
+      "start_min": 70,
+      "end_min": 85,
+      "frequency": { "start": 28, "end": 35 },
+      "support_frequency": { "start": 28, "end": 32 },
+      "amplitude": { "start": 0.6, "end": 0.4 },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Awakening",
+      "start_min": 85,
+      "end_min": 90,
+      "frequency": { "start": 35, "end": 40 },
+      "support_frequency": { "start": 32, "end": 36 },
+      "amplitude": { "start": 0.4, "end": 0.0 },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

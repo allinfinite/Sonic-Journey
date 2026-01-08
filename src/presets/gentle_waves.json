@@ -1,0 +1,71 @@
+{
+  "name": "Gentle Waves",
+  "category": "relaxation",
+  "description": "Soft, rhythmic waves to release tension and find calm",
+  "duration_minutes": 45,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Arriving",
+      "start_min": 0,
+      "end_min": 8,
+      "frequency": { "start": 42, "end": 40 },
+      "support_frequency": { "start": 38, "end": 36 },
+      "amplitude": { "start": 0.0, "end": 0.65 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Softening",
+      "start_min": 8,
+      "end_min": 25,
+      "frequency": { "start": 40, "end": 36 },
+      "support_frequency": { "start": 36, "end": 32 },
+      "amplitude": { "start": 0.65, "end": 0.7 },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.2,
+      "fm_rate": 0.06,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Floating",
+      "start_min": 25,
+      "end_min": 38,
+      "frequency": { "start": 36, "end": 38 },
+      "support_frequency": { "start": 32, "end": 34 },
+      "amplitude": { "start": 0.7, "end": 0.6 },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.15,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Returning",
+      "start_min": 38,
+      "end_min": 45,
+      "frequency": { "start": 38, "end": 42 },
+      "support_frequency": { "start": 34, "end": 38 },
+      "amplitude": { "start": 0.6, "end": 0.0 },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "Wind Down",
+  "category": "sleep",
+  "description": "Prepare your body and mind for restful sleep",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -14,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Unwind",
+      "start_min": 0,
+      "end_min": 8,
+      "frequency": { "start": 42, "end": 38 },
+      "support_frequency": { "start": 38, "end": 34 },
+      "amplitude": { "start": 0.0, "end": 0.6 },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Soften",
+      "start_min": 8,
+      "end_min": 18,
+      "frequency": { "start": 38, "end": 32 },
+      "support_frequency": { "start": 34, "end": 28 },
+      "amplitude": { "start": 0.6, "end": 0.65 },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.15,
+      "fm_rate": 0.04,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4.0
+    },
+    {
+      "name": "Drift",
+      "start_min": 18,
+      "end_min": 30,
+      "frequency": { "start": 32, "end": 28 },
+      "support_frequency": { "start": 28, "end": 28 },
+      "amplitude": { "start": 0.65, "end": 0.0 },
+      "breath_cycle_sec": 20,
+      "fm_depth": 0.1,
+      "fm_rate": 0.03,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 3.0
+    }
+  ]
+}

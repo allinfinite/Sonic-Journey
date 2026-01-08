@@ -1,0 +1,67 @@
+{
+  "categories": [
+    {
+      "id": "relaxation",
+      "name": "Relaxation & Calm",
+      "icon": "🌊",
+      "description": "Release tension and find peace",
+      "presets": ["gentle_waves", "stress_release"]
+    },
+    {
+      "id": "meditation",
+      "name": "Deep Meditation",
+      "icon": "🧘",
+      "description": "Journey inward to stillness",
+      "presets": ["inner_stillness", "extended_practice"]
+    },
+    {
+      "id": "grounding",
+      "name": "Grounding & Stability",
+      "icon": "🌿",
+      "description": "Feel centered and present",
+      "presets": ["quick_ground", "earth_connection"]
+    },
+    {
+      "id": "energy",
+      "name": "Energy & Uplift",
+      "icon": "☀️",
+      "description": "Gentle activation and vitality",
+      "presets": ["morning_rise", "gentle_energize"]
+    },
+    {
+      "id": "focus",
+      "name": "Focus & Clarity",
+      "icon": "🎯",
+      "description": "Sharpen concentration",
+      "presets": ["clear_mind", "deep_focus"]
+    },
+    {
+      "id": "sleep",
+      "name": "Sleep & Rest",
+      "icon": "🌙",
+      "description": "Drift into peaceful sleep",
+      "presets": ["wind_down", "deep_rest"]
+    },
+    {
+      "id": "emotional",
+      "name": "Emotional Release",
+      "icon": "💜",
+      "description": "Process and let go",
+      "presets": ["gentle_release", "heart_opening"]
+    },
+    {
+      "id": "bliss",
+      "name": "Bliss & Joy",
+      "icon": "✨",
+      "description": "Experience expanded states",
+      "presets": ["joy_journey", "bliss_wave"]
+    },
+    {
+      "id": "therapeutic",
+      "name": "Therapeutic Sessions",
+      "icon": "🔮",
+      "description": "Support for medicine-assisted therapy",
+      "presets": ["ketamine_journey"]
+    }
+  ]
+}

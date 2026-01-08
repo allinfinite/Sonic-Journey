@@ -1,0 +1,73 @@
+{
+  "name": "Gentle Energize",
+  "category": "energy",
+  "description": "Soft, sustained energy boost without overstimulation",
+  "duration_minutes": 45,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Settle",
+      "start_min": 0,
+      "end_min": 8,
+      "frequency": { "start": 38, "end": 40 },
+      "support_frequency": { "start": 34, "end": 36 },
+      "amplitude": { "start": 0.0, "end": 0.6 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Kindle",
+      "start_min": 8,
+      "end_min": 20,
+      "frequency": { "start": 40, "end": 50 },
+      "support_frequency": { "start": 36, "end": 45 },
+      "amplitude": { "start": 0.6, "end": 0.7 },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.2,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 9.0
+    },
+    {
+      "name": "Sustain",
+      "start_min": 20,
+      "end_min": 35,
+      "frequency": { "start": 50, "end": 52 },
+      "support_frequency": { "start": 45, "end": 48 },
+      "amplitude": { "start": 0.7, "end": 0.7 },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.15,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10.0
+    },
+    {
+      "name": "Integrate",
+      "start_min": 35,
+      "end_min": 45,
+      "frequency": { "start": 52, "end": 42 },
+      "support_frequency": { "start": 48, "end": 38 },
+      "amplitude": { "start": 0.7, "end": 0.0 },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}
