@@ -62,6 +62,13 @@
       "icon": "🔮",
       "description": "Support for medicine-assisted therapy",
       "presets": ["ketamine_journey"]
+    },
+    {
+      "id": "intimacy",
+      "name": "Intimacy & Connection",
+      "icon": "💗",
+      "description": "Deepen presence and connection",
+      "presets": ["tantric_connection"]
     }
   ]
 }

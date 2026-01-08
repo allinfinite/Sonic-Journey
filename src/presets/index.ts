@@ -22,6 +22,7 @@ import quickGroundJson from './quick_ground.json';
 import stressReleaseJson from './stress_release.json';
 import windDownJson from './wind_down.json';
 import ketamineJourneyJson from './ketamine_journey.json';
+import tantricConnectionJson from './tantric_connection.json';
 import indexJson from './index.json';
 
 // Helper to convert preset JSON to proper JourneyConfig
@@ -70,6 +71,7 @@ export const presets: Record<string, JourneyConfig> = {
   stress_release: convertPreset(stressReleaseJson as unknown as Record<string, unknown>),
   wind_down: convertPreset(windDownJson as unknown as Record<string, unknown>),
   ketamine_journey: convertPreset(ketamineJourneyJson as unknown as Record<string, unknown>),
+  tantric_connection: convertPreset(tantricConnectionJson as unknown as Record<string, unknown>),
 };
 
 // Export preset index
