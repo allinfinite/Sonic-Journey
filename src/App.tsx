@@ -3,12 +3,16 @@
  * Generate therapeutic vibroacoustic audio with live playback and export
  */
 
+import { useState } from 'react';
 import { useJourneyStore } from './stores/journeyStore';
 import { Timeline } from './components/Timeline/Timeline';
 import { PhaseControls } from './components/Controls/PhaseControls';
 import { TransportBar } from './components/Transport/TransportBar';
 import { PresetBrowser } from './components/PresetBrowser/PresetBrowser';
 import { ExportDialog } from './components/ExportDialog/ExportDialog';
+import { BassGenerator } from './components/BassGenerator/BassGenerator';
+
+type AppMode = 'journey' | 'bass';
 
 function PhaseSelector() {
   const { journey, selectedPhaseIndex, selectPhase, addPhase, removePhase } = useJourneyStore();
@@ -94,63 +98,129 @@ function LayerToggles() {
   );
 }
 
-function Header() {
+function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: AppMode) => void }) {
   const { journey, setShowPresetBrowser } = useJourneyStore();
 
   return (
-    <header className="flex items-center justify-between p-6 border-b border-white/10">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--color-text)] mb-1">
-          Sonic Journey Creator
-        </h1>
-        <p className="text-sm text-[var(--color-text-muted)]">
-          {journey.name} • {journey.duration_minutes} minutes
-        </p>
+    <header className="border-b border-white/10">
+      {/* Top bar */}
+      <div className="flex items-center justify-between p-4 px-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--color-text)] mb-1">
+            Sonic Journey
+          </h1>
+          {mode === 'journey' && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {journey.name} • {journey.duration_minutes} minutes
+            </p>
+          )}
+          {mode === 'bass' && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Bass Track Generator for Vibe Table
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {mode === 'journey' && (
+            <button
+              onClick={() => setShowPresetBrowser(true)}
+              className="px-4 py-2 rounded-lg bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-[var(--color-text)] text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              Browse Journeys
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-3">
+
+      {/* Mode tabs */}
+      <div className="flex px-6 gap-1">
         <button
-          onClick={() => setShowPresetBrowser(true)}
-          className="px-4 py-2 rounded-lg bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-[var(--color-text)] text-sm font-medium transition-colors flex items-center gap-2"
+          onClick={() => onModeChange('journey')}
+          className={`px-5 py-3 text-sm font-medium rounded-t-lg transition-all relative ${
+            mode === 'journey'
+              ? 'bg-[var(--color-surface)] text-[var(--color-text)]'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]/50'
+          }`}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </svg>
-          Browse Journeys
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 18v-6a9 9 0 0118 0v6" />
+              <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z" />
+            </svg>
+            Journey Creator
+          </span>
+          {mode === 'journey' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+          )}
+        </button>
+        <button
+          onClick={() => onModeChange('bass')}
+          className={`px-5 py-3 text-sm font-medium rounded-t-lg transition-all relative ${
+            mode === 'bass'
+              ? 'bg-[var(--color-surface)] text-[var(--color-text)]'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]/50'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            Bass Generator
+          </span>
+          {mode === 'bass' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+          )}
         </button>
       </div>
     </header>
   );
 }
 
+function JourneyCreator() {
+  return (
+    <>
+      {/* Timeline */}
+      <section>
+        <h2 className="text-lg font-semibold text-[var(--color-text)] mb-3">
+          Journey Timeline
+        </h2>
+        <Timeline />
+      </section>
+
+      {/* Transport */}
+      <TransportBar />
+
+      {/* Phase selector */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <PhaseSelector />
+        <LayerToggles />
+      </div>
+
+      {/* Phase controls */}
+      <PhaseControls />
+    </>
+  );
+}
+
 function App() {
+  const [mode, setMode] = useState<AppMode>('journey');
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header mode={mode} onModeChange={setMode} />
 
-      <main className="flex-1 p-6 space-y-6">
-        {/* Timeline */}
-        <section>
-          <h2 className="text-lg font-semibold text-[var(--color-text)] mb-3">
-            Journey Timeline
-          </h2>
-          <Timeline />
-        </section>
-
-        {/* Transport */}
-        <TransportBar />
-
-        {/* Phase selector */}
-        <div className="flex items-center justify-between">
-          <PhaseSelector />
-          <LayerToggles />
-        </div>
-
-        {/* Phase controls */}
-        <PhaseControls />
+      <main className="flex-1 p-6 space-y-6 bg-[var(--color-surface)]/30">
+        {mode === 'journey' && <JourneyCreator />}
+        {mode === 'bass' && <BassGenerator />}
       </main>
 
-      {/* Modals */}
+      {/* Modals (only for journey mode) */}
       <PresetBrowser />
       <ExportDialog />
     </div>

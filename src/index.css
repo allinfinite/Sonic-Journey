@@ -2,9 +2,11 @@
 
 :root {
   --color-primary: #6366f1;
+  --color-primary-rgb: 99, 102, 241;
   --color-primary-dark: #4f46e5;
   --color-surface: #1e1e2e;
   --color-surface-light: #2a2a3e;
+  --color-border: #3f3f5a;
   --color-text: #e4e4e7;
   --color-text-muted: #a1a1aa;
   --color-accent: #22d3ee;
