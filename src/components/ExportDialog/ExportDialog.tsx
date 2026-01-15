@@ -41,7 +41,11 @@ export function ExportDialog() {
   const durationSeconds = journey.duration_minutes * 60;
   const estimatedSize = durationSeconds * exportSettings.sampleRate * exportSettings.channels * ((exportSettings.bitDepth || 16) / 8);
 
-  const handleExport = async () => {
+  const handleExport = async (e?: React.MouseEvent) => {
+    // Prevent any default behavior that might cause page refresh
+    e?.preventDefault();
+    e?.stopPropagation();
+
     setError(null);
     setExporting(true);
     setExportProgress({ phase: 'Starting', stage: 'init', progress: 0 });
@@ -92,12 +96,22 @@ export function ExportDialog() {
         message: 'Export complete!',
       });
 
-      // Close dialog after short delay
-      setTimeout(() => {
-        setShowExportDialog(false);
+      // On mobile, don't auto-close so user can see the share sheet
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
+      if (!isMobile) {
+        // Close dialog after short delay on desktop
+        setTimeout(() => {
+          setShowExportDialog(false);
+          setExporting(false);
+          setExportProgress(null);
+        }, 1500);
+      } else {
+        // On mobile, show a "Done" button instead
         setExporting(false);
-        setExportProgress(null);
-      }, 1500);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed');
       setExporting(false);
@@ -260,14 +274,16 @@ export function ExportDialog() {
               onClick={handleClose}
               className="px-4 py-2 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 transition-colors"
             >
-              Cancel
+              {exportProgress?.phase === 'Complete' ? 'Done' : 'Cancel'}
             </button>
-            <button
-              onClick={handleExport}
-              className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors"
-            >
-              Export WAV
-            </button>
+            {exportProgress?.phase !== 'Complete' && (
+              <button
+                onClick={handleExport}
+                className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors"
+              >
+                Export WAV
+              </button>
+            )}
           </div>
         )}
       </div>

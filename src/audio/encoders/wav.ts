@@ -178,14 +178,78 @@ export async function encodeWavWithProgress(
 
 /**
  * Trigger download of a Blob as a file
+ * Mobile-compatible version that prevents page refresh
  */
 export function downloadBlob(blob: Blob, filename: string): void {
+  // Check if Web Share API is available (mobile Safari, Chrome mobile)
+  if (navigator.share && isMobileDevice()) {
+    // Convert blob to File for sharing
+    const file = new File([blob], filename, { type: blob.type });
+
+    navigator.share({
+      files: [file],
+      title: 'Sonic Journey Export',
+      text: 'Your journey audio file'
+    }).catch((err) => {
+      // If share fails, fall back to download
+      console.warn('Share failed, falling back to download:', err);
+      triggerDownload(blob, filename);
+    });
+  } else {
+    // Desktop or browsers without share API
+    triggerDownload(blob, filename);
+  }
+}
+
+/**
+ * Check if device is mobile
+ */
+function isMobileDevice(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+}
+
+/**
+ * Traditional download method with mobile safeguards
+ */
+function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
+  a.style.display = 'none';
   a.href = url;
   a.download = filename;
+
+  // Add rel attribute to prevent navigation on some mobile browsers
+  a.rel = 'noopener noreferrer';
+
+  // Prevent any default navigation behavior
+  a.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // Important: append to body before clicking for mobile compatibility
   document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+
+  // Use setTimeout to ensure the element is in DOM
+  setTimeout(() => {
+    // Trigger click in a way that works on mobile
+    if (isMobileDevice()) {
+      // On mobile, dispatch a proper event
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: false,
+        cancelable: true
+      });
+      a.dispatchEvent(clickEvent);
+    } else {
+      a.click();
+    }
+
+    // Clean up after a delay to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }, 0);
 }
