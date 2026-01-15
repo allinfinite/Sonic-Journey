@@ -112,60 +112,25 @@ export function ExportDialog() {
       console.log('Export complete, iOS:', iOS, 'isMobile:', isMobile);
 
       if (iOS) {
-        try {
-          // On iOS, create download link for manual tap
-          console.log('iOS path - creating manual download link');
+        // On iOS, create blob URL download link for manual tap
+        // Don't use FileReader - it causes memory issues with large files
+        console.log('iOS path - creating blob URL download link');
 
-          // Keep exporting state true while converting to prevent any state issues
-          setExportProgress({
-            phase: 'Processing',
-            stage: 'preparing',
-            progress: 95,
-            message: 'Preparing download...',
-          });
+        const url = URL.createObjectURL(blob);
+        console.log('Blob URL created:', url);
 
-          // Convert blob to data URL to prevent navigation issues
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            try {
-              const dataUrl = reader.result as string;
-              console.log('Data URL created, length:', dataUrl.length);
+        setDownloadUrl(url);
+        setDownloadFilename(filename);
+        setExporting(false);
 
-              // Set ALL state atomically to prevent intermediate renders
-              setDownloadUrl(dataUrl);
-              setDownloadFilename(filename);
-              setExporting(false);
+        setExportProgress({
+          phase: 'Complete',
+          stage: 'done',
+          progress: 100,
+          message: 'Ready! Tap and hold the Download button, then choose "Download Linked File"',
+        });
 
-              setExportProgress({
-                phase: 'Complete',
-                stage: 'done',
-                progress: 100,
-                message: 'Ready! Tap the download button below to save your file.',
-              });
-
-              console.log('iOS export state updated successfully');
-            } catch (innerErr) {
-              console.error('Error in reader.onloadend:', innerErr);
-              setError('Failed to prepare download. Please try again.');
-              setExporting(false);
-            }
-          };
-
-          reader.onerror = (err) => {
-            console.error('FileReader error:', err);
-            setError('Failed to convert audio file. Please try again.');
-            setExporting(false);
-            setExportProgress(null);
-          };
-
-          console.log('Starting FileReader.readAsDataURL...');
-          reader.readAsDataURL(blob);
-          console.log('FileReader started');
-        } catch (iosErr) {
-          console.error('Error in iOS export path:', iosErr);
-          setError('Export failed on iOS. Please try again.');
-          setExporting(false);
-        }
+        console.log('iOS export complete - download link ready');
       } else {
         // Trigger download automatically on non-iOS
         downloadBlob(blob, filename);
@@ -373,9 +338,16 @@ export function ExportDialog() {
                   download={downloadFilename}
                   onClick={(e) => {
                     console.log('Download link clicked');
-                    // Don't prevent default - we want the download to work
-                    // But stop propagation to prevent any parent handlers
-                    e.stopPropagation();
+                    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    if (iOS) {
+                      // On iOS, prevent default click and show instructions
+                      e.preventDefault();
+                      e.stopPropagation();
+                      alert('iOS Tip: Long-press this button and choose "Download Linked File" to save your audio file.');
+                    } else {
+                      // Non-iOS: allow normal download
+                      e.stopPropagation();
+                    }
                   }}
                   className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors inline-flex items-center gap-2"
                 >
