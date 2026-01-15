@@ -35,6 +35,8 @@ export function ExportDialog() {
   } = useJourneyStore();
 
   const [error, setError] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadFilename, setDownloadFilename] = useState<string>('');
 
   if (!showExportDialog) return null;
 
@@ -86,34 +88,48 @@ export function ExportDialog() {
       );
       const filename = `journey_${timestamp}.wav`;
 
-      // Trigger download
-      downloadBlob(blob, filename);
-
-      // Check device type for completion message
+      // Check device type
       const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent
       );
 
-      setExportProgress({
-        phase: 'Complete',
-        stage: 'done',
-        progress: 100,
-        message: iOS
-          ? 'File opened in new tab. Tap the share button (↑) and choose "Save to Files"'
-          : 'Export complete!',
-      });
+      if (iOS) {
+        // On iOS, create download link for manual tap
+        const url = URL.createObjectURL(blob);
+        setDownloadUrl(url);
+        setDownloadFilename(filename);
 
-      if (!isMobile) {
-        // Close dialog after short delay on desktop
-        setTimeout(() => {
-          setShowExportDialog(false);
-          setExporting(false);
-          setExportProgress(null);
-        }, 1500);
-      } else {
-        // On mobile, show a "Done" button instead
+        setExportProgress({
+          phase: 'Complete',
+          stage: 'done',
+          progress: 100,
+          message: 'Ready! Tap the download button below to save your file.',
+        });
+
         setExporting(false);
+      } else {
+        // Trigger download automatically on non-iOS
+        downloadBlob(blob, filename);
+
+        setExportProgress({
+          phase: 'Complete',
+          stage: 'done',
+          progress: 100,
+          message: 'Export complete!',
+        });
+
+        if (!isMobile) {
+          // Close dialog after short delay on desktop
+          setTimeout(() => {
+            setShowExportDialog(false);
+            setExporting(false);
+            setExportProgress(null);
+          }, 1500);
+        } else {
+          // On mobile, show a "Done" button instead
+          setExporting(false);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed');
@@ -124,7 +140,14 @@ export function ExportDialog() {
 
   const handleClose = () => {
     if (!isExporting) {
+      // Clean up blob URL if exists
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+        setDownloadUrl(null);
+        setDownloadFilename('');
+      }
       setShowExportDialog(false);
+      setExportProgress(null);
     }
   };
 
@@ -273,19 +296,44 @@ export function ExportDialog() {
         {/* Footer */}
         {!isExporting && (
           <div className="p-6 border-t border-white/10 flex justify-end gap-3">
-            <button
-              onClick={handleClose}
-              className="px-4 py-2 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 transition-colors"
-            >
-              {exportProgress?.phase === 'Complete' ? 'Done' : 'Cancel'}
-            </button>
-            {exportProgress?.phase !== 'Complete' && (
-              <button
-                onClick={handleExport}
-                className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors"
-              >
-                Export WAV
-              </button>
+            {downloadUrl ? (
+              <>
+                <button
+                  onClick={handleClose}
+                  className="px-4 py-2 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 transition-colors"
+                >
+                  Close
+                </button>
+                <a
+                  href={downloadUrl}
+                  download={downloadFilename}
+                  className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors inline-flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download WAV
+                </a>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleClose}
+                  className="px-4 py-2 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 transition-colors"
+                >
+                  {exportProgress?.phase === 'Complete' ? 'Done' : 'Cancel'}
+                </button>
+                {exportProgress?.phase !== 'Complete' && (
+                  <button
+                    onClick={handleExport}
+                    className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors"
+                  >
+                    Export WAV
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
