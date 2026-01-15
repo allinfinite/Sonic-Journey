@@ -181,15 +181,27 @@ export async function encodeWavWithProgress(
  * Mobile-compatible version that prevents page refresh
  */
 export function downloadBlob(blob: Blob, filename: string): void {
-  // Check if Web Share API is available (mobile Safari, Chrome mobile)
-  if (navigator.share && isMobileDevice()) {
+  const mobile = isMobileDevice();
+
+  // Check if Web Share API is available and supports files
+  const hasShareAPI = !!navigator.share;
+  const canShareFiles = navigator.canShare
+    ? navigator.canShare({ files: [new File([blob], filename)] })
+    : false;
+
+  console.log('Download attempt:', { mobile, hasShareAPI, canShareFiles });
+
+  if (canShareFiles && mobile) {
     // Convert blob to File for sharing
     const file = new File([blob], filename, { type: blob.type });
 
+    console.log('Attempting Web Share API');
     navigator.share({
       files: [file],
       title: 'Sonic Journey Export',
       text: 'Your journey audio file'
+    }).then(() => {
+      console.log('Share successful');
     }).catch((err) => {
       // If share fails, fall back to download
       console.warn('Share failed, falling back to download:', err);
@@ -197,6 +209,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
     });
   } else {
     // Desktop or browsers without share API
+    console.log('Using traditional download');
     triggerDownload(blob, filename);
   }
 }
@@ -214,6 +227,41 @@ function isMobileDevice(): boolean {
  * Traditional download method with mobile safeguards
  */
 function triggerDownload(blob: Blob, filename: string): void {
+  // For iOS Safari and Brave iOS, open blob URL in new window instead
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  if (iOS) {
+    console.log('iOS detected, using window.open approach');
+
+    // Create blob URL
+    const url = URL.createObjectURL(blob);
+
+    // Open in new window - iOS will show download option
+    const win = window.open(url, '_blank');
+
+    if (!win) {
+      console.warn('Popup blocked, trying iframe approach');
+      // Fallback: use iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 5000);
+    } else {
+      // Clean up after giving time for download
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 5000);
+    }
+
+    return;
+  }
+
+  // Non-iOS mobile and desktop
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.style.display = 'none';
@@ -233,22 +281,16 @@ function triggerDownload(blob: Blob, filename: string): void {
 
   // Use setTimeout to ensure the element is in DOM
   setTimeout(() => {
-    // Trigger click in a way that works on mobile
-    if (isMobileDevice()) {
-      // On mobile, dispatch a proper event
-      const clickEvent = new MouseEvent('click', {
-        view: window,
-        bubbles: false,
-        cancelable: true
-      });
-      a.dispatchEvent(clickEvent);
-    } else {
-      a.click();
-    }
+    console.log('Triggering download click');
+
+    // Trigger click
+    a.click();
 
     // Clean up after a delay to ensure download starts
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
       URL.revokeObjectURL(url);
     }, 100);
   }, 0);

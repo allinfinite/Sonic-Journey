@@ -89,17 +89,20 @@ export function ExportDialog() {
       // Trigger download
       downloadBlob(blob, filename);
 
+      // Check device type for completion message
+      const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
       setExportProgress({
         phase: 'Complete',
         stage: 'done',
         progress: 100,
-        message: 'Export complete!',
+        message: iOS
+          ? 'File opened in new tab. Tap the share button (↑) and choose "Save to Files"'
+          : 'Export complete!',
       });
-
-      // On mobile, don't auto-close so user can see the share sheet
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
 
       if (!isMobile) {
         // Close dialog after short delay on desktop
