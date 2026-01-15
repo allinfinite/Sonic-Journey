@@ -2,7 +2,7 @@
  * ExportDialog - Format selection, quality options, and export progress
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useJourneyStore } from '../../stores/journeyStore';
 import { OfflineRenderer } from '../../audio/OfflineRenderer';
 import { encodeWavWithProgress, downloadBlob } from '../../audio/encoders/wav';
@@ -37,6 +37,21 @@ export function ExportDialog() {
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadFilename, setDownloadFilename] = useState<string>('');
+
+  // Prevent any unhandled errors from causing page refresh
+  useEffect(() => {
+    const handleError = (e: ErrorEvent) => {
+      console.error('Global error caught:', e.error);
+      e.preventDefault();
+      if (isExporting) {
+        setError('An error occurred during export. Please try again.');
+        setExporting(false);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, [isExporting, setExporting]);
 
   if (!showExportDialog) return null;
 
@@ -94,29 +109,63 @@ export function ExportDialog() {
         navigator.userAgent
       );
 
+      console.log('Export complete, iOS:', iOS, 'isMobile:', isMobile);
+
       if (iOS) {
-        // On iOS, create download link for manual tap
-        console.log('iOS detected - creating manual download link');
+        try {
+          // On iOS, create download link for manual tap
+          console.log('iOS path - creating manual download link');
 
-        // Convert blob to data URL to prevent navigation issues
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUrl = reader.result as string;
-          console.log('Created data URL, length:', dataUrl.length);
-          setDownloadUrl(dataUrl);
-          setDownloadFilename(filename);
-
+          // Keep exporting state true while converting to prevent any state issues
           setExportProgress({
-            phase: 'Complete',
-            stage: 'done',
-            progress: 100,
-            message: 'Ready! Tap the download button below to save your file.',
+            phase: 'Processing',
+            stage: 'preparing',
+            progress: 95,
+            message: 'Preparing download...',
           });
 
+          // Convert blob to data URL to prevent navigation issues
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            try {
+              const dataUrl = reader.result as string;
+              console.log('Data URL created, length:', dataUrl.length);
+
+              // Set ALL state atomically to prevent intermediate renders
+              setDownloadUrl(dataUrl);
+              setDownloadFilename(filename);
+              setExporting(false);
+
+              setExportProgress({
+                phase: 'Complete',
+                stage: 'done',
+                progress: 100,
+                message: 'Ready! Tap the download button below to save your file.',
+              });
+
+              console.log('iOS export state updated successfully');
+            } catch (innerErr) {
+              console.error('Error in reader.onloadend:', innerErr);
+              setError('Failed to prepare download. Please try again.');
+              setExporting(false);
+            }
+          };
+
+          reader.onerror = (err) => {
+            console.error('FileReader error:', err);
+            setError('Failed to convert audio file. Please try again.');
+            setExporting(false);
+            setExportProgress(null);
+          };
+
+          console.log('Starting FileReader.readAsDataURL...');
+          reader.readAsDataURL(blob);
+          console.log('FileReader started');
+        } catch (iosErr) {
+          console.error('Error in iOS export path:', iosErr);
+          setError('Export failed on iOS. Please try again.');
           setExporting(false);
-          console.log('iOS export complete, downloadUrl set');
-        };
-        reader.readAsDataURL(blob);
+        }
       } else {
         // Trigger download automatically on non-iOS
         downloadBlob(blob, filename);
