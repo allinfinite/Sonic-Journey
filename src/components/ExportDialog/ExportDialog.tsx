@@ -96,7 +96,9 @@ export function ExportDialog() {
 
       if (iOS) {
         // On iOS, create download link for manual tap
+        console.log('iOS detected - creating manual download link');
         const url = URL.createObjectURL(blob);
+        console.log('Created blob URL:', url);
         setDownloadUrl(url);
         setDownloadFilename(filename);
 
@@ -108,6 +110,7 @@ export function ExportDialog() {
         });
 
         setExporting(false);
+        console.log('iOS export complete, downloadUrl set');
       } else {
         // Trigger download automatically on non-iOS
         downloadBlob(blob, filename);
@@ -181,7 +184,7 @@ export function ExportDialog() {
 
         <div className="p-6 space-y-6">
           {/* Export progress */}
-          {isExporting && exportProgress && (
+          {(isExporting || exportProgress) && exportProgress && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-[var(--color-text)]">{exportProgress.phase}</span>
@@ -201,8 +204,8 @@ export function ExportDialog() {
             </div>
           )}
 
-          {/* Settings (hidden during export) */}
-          {!isExporting && (
+          {/* Settings (hidden during export and when complete) */}
+          {!isExporting && !exportProgress && (
             <>
               {/* Format info */}
               <div className="p-4 bg-[var(--color-surface-light)] rounded-xl">
