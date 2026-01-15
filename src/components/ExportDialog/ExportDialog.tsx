@@ -97,20 +97,26 @@ export function ExportDialog() {
       if (iOS) {
         // On iOS, create download link for manual tap
         console.log('iOS detected - creating manual download link');
-        const url = URL.createObjectURL(blob);
-        console.log('Created blob URL:', url);
-        setDownloadUrl(url);
-        setDownloadFilename(filename);
 
-        setExportProgress({
-          phase: 'Complete',
-          stage: 'done',
-          progress: 100,
-          message: 'Ready! Tap the download button below to save your file.',
-        });
+        // Convert blob to data URL to prevent navigation issues
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result as string;
+          console.log('Created data URL, length:', dataUrl.length);
+          setDownloadUrl(dataUrl);
+          setDownloadFilename(filename);
 
-        setExporting(false);
-        console.log('iOS export complete, downloadUrl set');
+          setExportProgress({
+            phase: 'Complete',
+            stage: 'done',
+            progress: 100,
+            message: 'Ready! Tap the download button below to save your file.',
+          });
+
+          setExporting(false);
+          console.log('iOS export complete, downloadUrl set');
+        };
+        reader.readAsDataURL(blob);
       } else {
         // Trigger download automatically on non-iOS
         downloadBlob(blob, filename);
@@ -143,9 +149,11 @@ export function ExportDialog() {
 
   const handleClose = () => {
     if (!isExporting) {
-      // Clean up blob URL if exists
+      // Clean up blob URL if exists (only revoke if it's a blob: URL, not data:)
       if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
+        if (downloadUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(downloadUrl);
+        }
         setDownloadUrl(null);
         setDownloadFilename('');
       }
@@ -159,7 +167,11 @@ export function ExportDialog() {
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={handleClose}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleClose();
+        }}
       />
 
       {/* Modal */}
@@ -310,6 +322,12 @@ export function ExportDialog() {
                 <a
                   href={downloadUrl}
                   download={downloadFilename}
+                  onClick={(e) => {
+                    console.log('Download link clicked');
+                    // Don't prevent default - we want the download to work
+                    // But stop propagation to prevent any parent handlers
+                    e.stopPropagation();
+                  }}
                   className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors inline-flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
