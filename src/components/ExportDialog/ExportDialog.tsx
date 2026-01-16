@@ -181,9 +181,12 @@ export function ExportDialog() {
       <div className="relative bg-[var(--color-surface)] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-xl font-semibold text-[var(--color-text)]">
-            Export Journey
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold text-[var(--color-text)]">
+              Export Journey
+            </h2>
+            <p className="text-xs text-[var(--color-text-muted)] mt-1">v2.0 - Manual Save</p>
+          </div>
           {!isExporting && (
             <button
               onClick={handleClose}
