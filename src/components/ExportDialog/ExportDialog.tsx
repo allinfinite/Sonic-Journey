@@ -35,6 +35,7 @@ export function ExportDialog() {
   } = useJourneyStore();
 
   const [error, setError] = useState<string | null>(null);
+  const [exportedBlob, setExportedBlob] = useState<{ blob: Blob; filename: string } | null>(null);
 
   // Prevent any unhandled errors from causing page refresh
   useEffect(() => {
@@ -101,91 +102,20 @@ export function ExportDialog() {
       );
       const filename = `journey_${timestamp}.wav`;
 
-      // Check device type
-      const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
+      console.log('Encoding complete, blob size:', blob.size);
 
-      console.log('Export complete, iOS:', iOS, 'isMobile:', isMobile);
+      // Save blob to state - do NOTHING else
+      setExportedBlob({ blob, filename });
 
-      if (iOS) {
-        // On iOS, use Web Share API - no blob URLs, no memory issues
-        console.log('iOS path - using Web Share API');
+      setExportProgress({
+        phase: 'Complete',
+        stage: 'done',
+        progress: 100,
+        message: 'Ready to save!',
+      });
 
-        setExportProgress({
-          phase: 'Complete',
-          stage: 'done',
-          progress: 100,
-          message: 'Preparing to share...',
-        });
-
-        setExporting(false);
-
-        // Small delay to ensure UI updates before attempting share
-        setTimeout(async () => {
-          try {
-            const file = new File([blob], filename, { type: 'audio/wav' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              console.log('Web Share API available, sharing file...');
-
-              await navigator.share({
-                files: [file],
-                title: 'Sonic Journey Export',
-                text: 'Your journey audio file'
-              });
-
-              console.log('Share successful');
-
-              setExportProgress({
-                phase: 'Complete',
-                stage: 'done',
-                progress: 100,
-                message: 'File shared successfully!',
-              });
-            } else {
-              console.log('Web Share API not available');
-              setExportProgress({
-                phase: 'Complete',
-                stage: 'done',
-                progress: 100,
-                message: 'Share not available. Try using Safari instead of Brave.',
-              });
-            }
-          } catch (shareErr) {
-            console.error('Share failed:', shareErr);
-            setExportProgress({
-              phase: 'Complete',
-              stage: 'done',
-              progress: 100,
-              message: 'Share cancelled or failed. Try using Safari.',
-            });
-          }
-        }, 100);
-      } else {
-        // Trigger download automatically on non-iOS
-        downloadBlob(blob, filename);
-
-        setExportProgress({
-          phase: 'Complete',
-          stage: 'done',
-          progress: 100,
-          message: 'Export complete!',
-        });
-
-        if (!isMobile) {
-          // Close dialog after short delay on desktop
-          setTimeout(() => {
-            setShowExportDialog(false);
-            setExporting(false);
-            setExportProgress(null);
-          }, 1500);
-        } else {
-          // On mobile, show a "Done" button instead
-          setExporting(false);
-        }
-      }
+      setExporting(false);
+      console.log('State updated, waiting for user action');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed');
       setExporting(false);
@@ -197,6 +127,41 @@ export function ExportDialog() {
     if (!isExporting) {
       setShowExportDialog(false);
       setExportProgress(null);
+      setExportedBlob(null);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!exportedBlob) return;
+
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    try {
+      if (iOS && navigator.canShare) {
+        // Try Web Share on iOS
+        const file = new File([exportedBlob.blob], exportedBlob.filename, { type: 'audio/wav' });
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Sonic Journey Export'
+          });
+          setExportProgress({
+            phase: 'Complete',
+            stage: 'done',
+            progress: 100,
+            message: 'Shared successfully!',
+          });
+        } else {
+          throw new Error('Cannot share files');
+        }
+      } else {
+        // Desktop or non-iOS: use download
+        downloadBlob(exportedBlob.blob, exportedBlob.filename);
+      }
+    } catch (err) {
+      console.error('Download/share failed:', err);
+      setError('Failed to save file. Please try again.');
     }
   };
 
@@ -353,9 +318,21 @@ export function ExportDialog() {
               onClick={handleClose}
               className="px-4 py-2 rounded-lg text-[var(--color-text-muted)] hover:bg-white/5 transition-colors"
             >
-              {exportProgress?.phase === 'Complete' ? 'Done' : 'Cancel'}
+              {exportProgress?.phase === 'Complete' ? 'Close' : 'Cancel'}
             </button>
-            {exportProgress?.phase !== 'Complete' && (
+            {exportedBlob ? (
+              <button
+                onClick={handleDownload}
+                className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Save File
+              </button>
+            ) : exportProgress?.phase !== 'Complete' && (
               <button
                 onClick={handleExport}
                 className="px-6 py-2 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-colors"
