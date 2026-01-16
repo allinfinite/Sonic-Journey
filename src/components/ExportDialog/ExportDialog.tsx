@@ -52,10 +52,29 @@ export function ExportDialog() {
     return () => window.removeEventListener('error', handleError);
   }, [isExporting, setExporting]);
 
+  // On mobile, force lower quality settings to prevent memory crash
+  useEffect(() => {
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (iOS && showExportDialog) {
+      // Force mobile-safe settings
+      if (exportSettings.sampleRate > 22050) {
+        setExportSettings({ sampleRate: 22050 });
+      }
+      if (exportSettings.bitDepth && exportSettings.bitDepth > 16) {
+        setExportSettings({ bitDepth: 16 });
+      }
+      if (exportSettings.channels > 1) {
+        setExportSettings({ channels: 1 });
+      }
+    }
+  }, [showExportDialog, exportSettings, setExportSettings]);
+
   if (!showExportDialog) return null;
 
   const durationSeconds = journey.duration_minutes * 60;
   const estimatedSize = durationSeconds * exportSettings.sampleRate * exportSettings.channels * ((exportSettings.bitDepth || 16) / 8);
+
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   const handleExport = async (e?: React.MouseEvent) => {
     // Prevent any default behavior that might cause page refresh
@@ -225,6 +244,12 @@ export function ExportDialog() {
           {/* Settings (hidden during export and when complete) */}
           {!isExporting && !exportProgress && (
             <>
+              {iOS && (
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-sm text-yellow-500">
+                  ⚠️ Mobile device detected - using lower quality settings to prevent crashes
+                </div>
+              )}
+
               {/* Format info */}
               <div className="p-4 bg-[var(--color-surface-light)] rounded-xl">
                 <div className="flex items-center gap-3">
@@ -248,7 +273,8 @@ export function ExportDialog() {
                 <select
                   value={exportSettings.sampleRate}
                   onChange={(e) => setExportSettings({ sampleRate: Number(e.target.value) as ExportSettings['sampleRate'] })}
-                  className="w-full bg-[var(--color-surface-light)] border border-white/10 rounded-lg px-3 py-2 text-[var(--color-text)]"
+                  disabled={iOS}
+                  className="w-full bg-[var(--color-surface-light)] border border-white/10 rounded-lg px-3 py-2 text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {SAMPLE_RATES.map((rate) => (
                     <option key={rate.value} value={rate.value}>
@@ -264,7 +290,8 @@ export function ExportDialog() {
                 <select
                   value={exportSettings.bitDepth || 16}
                   onChange={(e) => setExportSettings({ bitDepth: Number(e.target.value) as ExportSettings['bitDepth'] })}
-                  className="w-full bg-[var(--color-surface-light)] border border-white/10 rounded-lg px-3 py-2 text-[var(--color-text)]"
+                  disabled={iOS}
+                  className="w-full bg-[var(--color-surface-light)] border border-white/10 rounded-lg px-3 py-2 text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {WAV_BIT_DEPTHS.map((depth) => (
                     <option key={depth.value} value={depth.value}>
@@ -281,12 +308,13 @@ export function ExportDialog() {
                   {([1, 2] as const).map((channels) => (
                     <button
                       key={channels}
-                      onClick={() => setExportSettings({ channels })}
+                      onClick={() => !iOS && setExportSettings({ channels })}
+                      disabled={iOS && channels === 1}
                       className={`p-3 rounded-lg border transition-colors ${
                         exportSettings.channels === channels
                           ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10'
                           : 'border-white/10 hover:border-white/20'
-                      }`}
+                      } ${iOS ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <span className="text-sm text-[var(--color-text)]">
                         {channels === 1 ? 'Mono' : 'Stereo'}
