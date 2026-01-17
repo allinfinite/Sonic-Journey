@@ -187,21 +187,12 @@
   <div id="debugPanel" class="debug-panel">
     <h3>Streaming Protocol Tests</h3>
     <p style="font-size: 12px; color: #888; margin-bottom: 10px;">
-      ⚠️ Key fix: Now using writeWithoutResponse (Write Command) to match official app
+      ⚠️ Streaming protocol not working - only 01ff commands produce lights
     </p>
     <div class="debug-buttons">
-      <button onclick="testSimpleStreaming()" class="secondary" style="background: #00d4ff; font-weight: 700;">⚡ Simple Streaming Test</button>
-      <button onclick="testWaitForStatus()" class="secondary" style="background: #51cf66;">⏳ Wait For Status</button>
-      <button onclick="test01ffThenStreaming()" class="secondary" style="background: #ff6b6b;">🔴 01ff Then Streaming</button>
-      <button onclick="testFullStreaming()" class="secondary" style="background: #00d4ff;">🚀 Full Streaming Test</button>
-      <button onclick="fullInitSequence()" class="secondary" style="background: #6c5ce7; font-weight: 700;">🔬 Full Init Sequence</button>
-      <button onclick="quickInitTest()" class="secondary" style="background: #6c5ce7;">⚡ Quick Init Test</button>
-      <button onclick="testCapturedSequence()" class="secondary">Test Captured Bytes</button>
-      <button onclick="testHybrid()" class="secondary">Test Hybrid (01ff+Stream)</button>
-      <button onclick="testModes()" class="secondary">Test Modes (0-5)</button>
-      <button onclick="testStreamingFlash()" class="secondary">Test Streaming Flash</button>
-      <button onclick="sendStreamingTest()" class="secondary">Send Single Stream</button>
-      <button onclick="startJourneyMode()" class="secondary">Start Journey Mode</button>
+      <button onclick="testWaitForStatus()" class="secondary" style="background: #00d4ff; font-weight: 700;">⏳ Test Streaming (Best)</button>
+      <button onclick="testSimpleStreaming()" class="secondary" style="background: #51cf66;">⚡ Simple Test</button>
+      <button onclick="test01ffThenStreaming()" class="secondary" style="background: #ff6b6b;">🔴 01ff + Stream</button>
     </div>
   </div>
 
@@ -225,6 +216,7 @@
     let flickerInterval = null;
     let journeyMode = false;
     let streamTimestamp = 0;
+    let testRunning = false; // Prevent multiple tests from running
 
     // --- Simplified states: click to activate ---
     const STATES = [
@@ -1188,12 +1180,30 @@
       }
     };
     
+    // Helper: Check if device is still connected
+    function isConnected() {
+      return device && device.gatt && device.gatt.connected && commandChar && dataChar;
+    }
+    
     // Test: Follow exact capture sequence - 0A, then enable DATA_CHAR notifications, then stream
     window.testWaitForStatus = async () => {
+      if (testRunning) {
+        log('Another test is already running!', 'error');
+        return;
+      }
+      
       if (!commandChar || !dataChar || !statusChar) { 
         log('Not fully connected (need statusChar)', 'error'); 
         return; 
       }
+      
+      // Check if device is connected
+      if (!isConnected()) {
+        log('Device not connected!', 'error');
+        return;
+      }
+      
+      testRunning = true;
       
       log('=== TEST: EXACT CAPTURE SEQUENCE ===', 'info');
       log('Following: 0A → Enable DATA_CHAR notifications → Wait for status → Stream', 'info');
@@ -1215,12 +1225,13 @@
         statusChar.addEventListener('characteristicvaluechanged', statusListener);
         log('Listening for status notifications...', 'info');
       } catch (e) {
-        log(`Failed to start status notifications: ${e.message}`, 'error');
+        log(`Failed to start status notifications: ${e?.message || String(e)}`, 'error');
         return;
       }
       
       try {
         // Step 1: Start journey mode (0A to COMMAND_CHAR)
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
         log('Step 1: Sending 0A to COMMAND_CHAR...', 'info');
         await commandChar.writeValue(new Uint8Array([0x0A]));
         journeyMode = true;
@@ -1228,25 +1239,34 @@
         await new Promise(r => setTimeout(r, 100));
         
         // Step 2: Enable DATA_CHAR notifications (0x0037 = 0100) - THIS IS AFTER 0A in capture!
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
         log('Step 2: Enabling DATA_CHAR notifications (0x0037 = 0100)...', 'info');
         try {
           const dataCccd = await dataChar.getDescriptor('2902');
           await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
           log('DATA_CHAR notifications enabled', 'success');
         } catch (e) {
-          log(`Failed to enable DATA_CHAR notifications: ${e.message}`, 'error');
+          const errorMsg = e?.message || e?.toString() || String(e) || 'Unknown error';
+          log(`Failed to enable DATA_CHAR notifications: ${errorMsg}`, 'error');
+          log('Note: Notifications may already be enabled', 'info');
         }
         await new Promise(r => setTimeout(r, 100));
         
         // Step 3: Wait for status notifications (device should start sending them)
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
         log('Step 3: Waiting for status notifications (up to 2 seconds)...', 'info');
         let waited = 0;
-        while (!statusReceived && waited < 2000) {
+        while (!statusReceived && waited < 2000 && isConnected()) {
           await new Promise(r => setTimeout(r, 100));
           waited += 100;
           if (waited % 500 === 0) {
             log(`  Still waiting... (${waited}ms)`, 'info');
           }
+        }
+        
+        if (!isConnected()) {
+          log('Device disconnected during wait!', 'error');
+          return;
         }
         
         if (statusReceived) {
@@ -1258,17 +1278,23 @@
         await new Promise(r => setTimeout(r, 200));
         
         // Step 4: Send initial zero command (CRITICAL: must be first streaming command)
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
+        if (!dataChar) { log('Data char not available!', 'error'); return; }
         log('Step 4: Sending initial zero command...', 'info');
         writeStreamingCommand(buildStreamingCommand(0, 0x0002, 0), true);
         await new Promise(r => setTimeout(r, 50));
         
         // Step 5: Send captured command
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
+        if (!dataChar) { log('Data char not available!', 'error'); return; }
         log('Step 5: Sending captured command (00320200cf31)...', 'info');
         const capturedCmd = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         writeStreamingCommand(capturedCmd, true);
         await new Promise(r => setTimeout(r, 67));
         
         // Step 6: Stream pattern
+        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
+        if (!dataChar) { log('Data char not available!', 'error'); return; }
         log('Step 6: Streaming pattern for 5 seconds...', 'info');
         const streamRateMs = 67;
         const duration = 5000;
@@ -1279,6 +1305,12 @@
         const phaseIncrement = (targetHz * 2 * Math.PI) / (1000 / streamRateMs);
         
         const interval = setInterval(() => {
+          if (!isConnected() || !dataChar) {
+            log('Device disconnected during streaming!', 'error');
+            clearInterval(interval);
+            return;
+          }
+          
           const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
           phase += phaseIncrement;
           ts += streamRateMs;
@@ -1287,7 +1319,8 @@
           try {
             writeStreamingCommand(buildStreamingCommand(intensity, 0x0002, ts), count % 15 === 0);
           } catch (e) {
-            log(`Stream error: ${e.message}`, 'error');
+            const errorMsg = e?.message || e?.toString() || String(e);
+            log(`Stream error: ${errorMsg}`, 'error');
             clearInterval(interval);
           }
         }, streamRateMs);
@@ -1295,7 +1328,14 @@
         setTimeout(() => {
           clearInterval(interval);
           statusChar.removeEventListener('characteristicvaluechanged', statusListener);
-          writeStreamingCommand(buildStreamingCommand(0, 0x0002, ts));
+          if (isConnected() && dataChar) {
+            try {
+              writeStreamingCommand(buildStreamingCommand(0, 0x0002, ts));
+            } catch (e) {
+              log(`Failed to send final zero: ${e?.message || String(e)}`, 'error');
+            }
+          }
+          testRunning = false;
           log(`=== TEST COMPLETE ===`, 'success');
           log(`Sent ${count} streaming commands, received ${statusCount} status notifications`, 'info');
           log('Did you see any lights?', 'info');
@@ -1303,7 +1343,9 @@
         
       } catch (e) {
         statusChar.removeEventListener('characteristicvaluechanged', statusListener);
-        log(`Test error: ${e.message}`, 'error');
+        testRunning = false;
+        const errorMsg = e?.message || e?.toString() || String(e);
+        log(`Test error: ${errorMsg}`, 'error');
         console.error(e);
       }
     };
