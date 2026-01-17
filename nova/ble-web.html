@@ -190,7 +190,9 @@
       ⚠️ Key fix: Now using writeWithoutResponse (Write Command) to match official app
     </p>
     <div class="debug-buttons">
-      <button onclick="testFullStreaming()" class="secondary" style="background: #00d4ff; font-weight: 700;">🚀 Full Streaming Test</button>
+      <button onclick="testSimpleStreaming()" class="secondary" style="background: #00d4ff; font-weight: 700;">⚡ Simple Streaming Test</button>
+      <button onclick="test01ffThenStreaming()" class="secondary" style="background: #ff6b6b;">🔴 01ff Then Streaming</button>
+      <button onclick="testFullStreaming()" class="secondary" style="background: #00d4ff;">🚀 Full Streaming Test</button>
       <button onclick="fullInitSequence()" class="secondary" style="background: #6c5ce7; font-weight: 700;">🔬 Full Init Sequence</button>
       <button onclick="quickInitTest()" class="secondary" style="background: #6c5ce7;">⚡ Quick Init Test</button>
       <button onclick="testCapturedSequence()" class="secondary">Test Captured Bytes</button>
@@ -612,13 +614,23 @@
     window.startJourney = window.startJourneyMode;
     
     // Helper: write streaming command using correct method (writeWithoutResponse)
-    function writeStreamingCommand(cmd) {
+    function writeStreamingCommand(cmd, logCmd = false) {
       if (!dataChar) throw new Error('Data char not available');
       // Use writeWithoutResponse (Write Command) to match official app protocol
       if (dataChar.properties.writeWithoutResponse) {
-        dataChar.writeValueWithoutResponse(cmd);
+        try {
+          dataChar.writeValueWithoutResponse(cmd);
+          if (logCmd) {
+            const hex = Array.from(cmd).map(b => b.toString(16).padStart(2, '0')).join(' ');
+            log(`  ✓ Sent (writeWithoutResponse): ${hex}`, 'data');
+          }
+        } catch (e) {
+          log(`writeWithoutResponse error: ${e.message}`, 'error');
+          throw e;
+        }
       } else {
         // Fallback to writeValue if writeWithoutResponse not supported
+        log('⚠️ writeWithoutResponse not available, using writeValue', 'info');
         return dataChar.writeValue(cmd);
       }
     }
@@ -1021,6 +1033,96 @@
       }
     };
     
+    // SIMPLE DIRECT TEST: Minimal steps to test streaming
+    window.testSimpleStreaming = async () => {
+      if (!commandChar || !dataChar) { 
+        log('Not fully connected', 'error'); 
+        return; 
+      }
+      
+      log('=== SIMPLE STREAMING TEST ===', 'info');
+      log('Checking dataChar properties...', 'info');
+      log(`  writeWithoutResponse: ${dataChar.properties.writeWithoutResponse}`, 'info');
+      log(`  write: ${dataChar.properties.write}`, 'info');
+      
+      try {
+        // 1. Start journey mode
+        log('Step 1: Sending 0A to start journey mode...', 'info');
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        journeyMode = true;
+        log('Journey mode started', 'success');
+        await new Promise(r => setTimeout(r, 300));
+        
+        // 2. Send initial zero command
+        log('Step 2: Sending initial zero command...', 'info');
+        const zeroCmd = buildStreamingCommand(0, 0x0002, 0);
+        const zeroHex = Array.from(zeroCmd).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        log(`  Command: ${zeroHex}`, 'data');
+        writeStreamingCommand(zeroCmd);
+        log('Initial zero sent', 'success');
+        await new Promise(r => setTimeout(r, 100));
+        
+        // 3. Send a few test commands with increasing intensity
+        log('Step 3: Sending test commands...', 'info');
+        for (let i = 0; i < 5; i++) {
+          const intensity = Math.floor((i / 4) * 65535); // 0 to 65535
+          const ts = i * 67;
+          const cmd = buildStreamingCommand(intensity, 0x0002, ts);
+          const hex = Array.from(cmd).map(b => b.toString(16).padStart(2, '0')).join(' ');
+          log(`  Command ${i+1}: intensity=${intensity}, ts=${ts} → ${hex}`, 'data');
+          writeStreamingCommand(cmd);
+          await new Promise(r => setTimeout(r, 67));
+        }
+        
+        // 4. Try the exact captured command
+        log('Step 4: Sending exact captured command...', 'info');
+        const capturedCmd = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        const capturedHex = Array.from(capturedCmd).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        log(`  Command: ${capturedHex}`, 'data');
+        writeStreamingCommand(capturedCmd);
+        log('Captured command sent', 'success');
+        await new Promise(r => setTimeout(r, 200));
+        
+        // 5. Stream a pattern for 3 seconds
+        log('Step 5: Streaming pattern for 3 seconds...', 'info');
+        const streamRateMs = 67;
+        const duration = 3000;
+        let ts = 0;
+        let count = 0;
+        const targetHz = 10;
+        let phase = 0;
+        const phaseIncrement = (targetHz * 2 * Math.PI) / (1000 / streamRateMs);
+        
+        const interval = setInterval(() => {
+          const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
+          phase += phaseIncrement;
+          ts += streamRateMs;
+          count++;
+          
+          try {
+            writeStreamingCommand(buildStreamingCommand(intensity, 0x0002, ts));
+            if (count % 10 === 0) {
+              log(`  Sent ${count} commands, intensity=${intensity}`, 'data');
+            }
+          } catch (e) {
+            log(`Stream error: ${e.message}`, 'error');
+            clearInterval(interval);
+          }
+        }, streamRateMs);
+        
+        setTimeout(() => {
+          clearInterval(interval);
+          writeStreamingCommand(buildStreamingCommand(0, 0x0002, ts));
+          log(`=== TEST COMPLETE (sent ${count} commands) ===`, 'success');
+          log('Did you see any lights?', 'info');
+        }, duration);
+        
+      } catch (e) {
+        log(`Simple streaming test error: ${e.message}`, 'error');
+        console.error(e);
+      }
+    };
+    
     // COMPREHENSIVE TEST: Full init + streaming with correct protocol
     window.testFullStreaming = async () => {
       if (!server || !commandChar || !dataChar) { 
@@ -1085,8 +1187,74 @@
       }
     };
     
+    // Test: Try 01ff first, then streaming (maybe streaming only works when light is already on?)
+    window.test01ffThenStreaming = async () => {
+      if (!commandChar || !dataChar) { 
+        log('Not fully connected', 'error'); 
+        return; 
+      }
+      
+      log('=== TEST: 01ff THEN STREAMING ===', 'info');
+      
+      try {
+        // 1. Turn on light with 01ff (we know this works)
+        log('Step 1: Turning on light with 01ff...', 'info');
+        await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
+        log('Light should be on now', 'success');
+        await new Promise(r => setTimeout(r, 500));
+        
+        // 2. Start journey mode
+        log('Step 2: Starting journey mode (0A)...', 'info');
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        journeyMode = true;
+        log('Journey mode started', 'success');
+        await new Promise(r => setTimeout(r, 300));
+        
+        // 3. Send initial zero
+        log('Step 3: Sending initial zero command...', 'info');
+        writeStreamingCommand(buildStreamingCommand(0, 0x0002, 0), true);
+        await new Promise(r => setTimeout(r, 100));
+        
+        // 4. Stream intensity values
+        log('Step 4: Streaming intensity values...', 'info');
+        const streamRateMs = 67;
+        const duration = 5000;
+        let ts = 0;
+        let count = 0;
+        const targetHz = 10;
+        let phase = 0;
+        const phaseIncrement = (targetHz * 2 * Math.PI) / (1000 / streamRateMs);
+        
+        const interval = setInterval(() => {
+          const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
+          phase += phaseIncrement;
+          ts += streamRateMs;
+          count++;
+          
+          try {
+            writeStreamingCommand(buildStreamingCommand(intensity, 0x0002, ts), count % 15 === 0);
+          } catch (e) {
+            log(`Stream error: ${e.message}`, 'error');
+            clearInterval(interval);
+          }
+        }, streamRateMs);
+        
+        setTimeout(() => {
+          clearInterval(interval);
+          writeStreamingCommand(buildStreamingCommand(0, 0x0002, ts));
+          log(`=== TEST COMPLETE (sent ${count} streaming commands) ===`, 'success');
+          log('Did the light brightness change?', 'info');
+        }, duration);
+        
+      } catch (e) {
+        log(`Test error: ${e.message}`, 'error');
+        console.error(e);
+      }
+    };
+    
     // Expose to window for debug panel
     window.testFullStreaming = window.testFullStreaming;
+    window.test01ffThenStreaming = window.test01ffThenStreaming;
 
     renderPresets();
   </script>
