@@ -187,6 +187,8 @@
   <div id="debugPanel" class="debug-panel">
     <h3>Streaming Protocol Tests</h3>
     <div class="debug-buttons">
+      <button onclick="fullInitSequence()" class="secondary" style="background: #6c5ce7; font-weight: 700;">🔬 Full Init Sequence</button>
+      <button onclick="quickInitTest()" class="secondary" style="background: #6c5ce7;">⚡ Quick Init Test</button>
       <button onclick="testCapturedSequence()" class="secondary">Test Captured Bytes</button>
       <button onclick="testHybrid()" class="secondary">Test Hybrid (01ff+Stream)</button>
       <button onclick="testModes()" class="secondary">Test Modes (0-5)</button>
@@ -394,7 +396,14 @@
       try {
         device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'Lumenate' }],
-          optionalServices: [CONTROL_SERVICE, MCUMGR_SERVICE, BATTERY_SERVICE, '180f']
+          optionalServices: [
+            CONTROL_SERVICE, 
+            MCUMGR_SERVICE, 
+            BATTERY_SERVICE, 
+            '180f', // Battery Service (short UUID)
+            '1801', // Generic Attribute Service (for Service Changed)
+            '180a'  // Device Information Service (for model, serial, firmware, hardware)
+          ]
         });
 
         log('Found: ' + device.name, 'success');
@@ -424,7 +433,7 @@
         log('\nDiscovering services...');
 
         try {
-          const controlService = await server.getPrimaryService(CONTROL_SERVICE);
+          controlService = await server.getPrimaryService(CONTROL_SERVICE);
           log('\nControl Service found!', 'service');
 
           const norm = (u) => (String(u || '').toLowerCase().replace(/-/g, ''));
@@ -450,6 +459,11 @@
             if (norm(uuid) === norm(DATA_CHAR)) {
               dataChar = char;
               log('  ^ Data char ready (for streaming)', 'success');
+            }
+            // STATUS_CHAR for device feedback
+            if (norm(uuid) === norm(STATUS_CHAR)) {
+              statusChar = char;
+              log('  ^ Status char ready', 'success');
             }
             // Fallback: first writable char if COMMAND_CHAR not found
             if (!fallbackWrite && (char.properties.write || char.properties.writeWithoutResponse)) {
@@ -744,6 +758,243 @@
         await new Promise(r => setTimeout(r, 500));
       }
       log('Mode test complete', 'success');
+    };
+    
+    // COMPREHENSIVE: Full initialization sequence from official app
+    window.fullInitSequence = async () => {
+      if (!server || !commandChar || !dataChar) { 
+        log('Not fully connected', 'error'); 
+        return; 
+      }
+      
+      log('=== FULL INITIALIZATION SEQUENCE ===', 'info');
+      
+      try {
+        // Step 1: Request MTU (Web Bluetooth doesn't expose this directly, but we can try)
+        // Note: Web Bluetooth handles MTU automatically, but we'll note it
+        log('Step 1: MTU negotiation (handled by browser)', 'info');
+        
+        // Step 2: Enable Service Changed indications
+        // This is typically on the Generic Attribute Service (0x1801)
+        try {
+          const gattService = await server.getPrimaryService('generic_attribute');
+          const serviceChangedChar = await gattService.getCharacteristic('service_changed');
+          const cccd = await serviceChangedChar.getDescriptor('2902');
+          await cccd.writeValue(new Uint8Array([0x02, 0x00]));
+          log('Step 2: Service Changed indications enabled', 'success');
+        } catch (e) {
+          log(`Step 2: Service Changed (may not be available): ${e.message}`, 'info');
+        }
+        
+        // Step 3: Enable Battery notifications
+        try {
+          const batteryService = await server.getPrimaryService('battery_service');
+          const batteryChar = await batteryService.getCharacteristic('battery_level');
+          const batteryCccd = await batteryChar.getDescriptor('2902');
+          await batteryCccd.writeValue(new Uint8Array([0x01, 0x00]));
+          log('Step 3: Battery notifications enabled', 'success');
+        } catch (e) {
+          log(`Step 3: Battery notifications: ${e.message}`, 'info');
+        }
+        
+        // Step 4: Read Battery Level
+        try {
+          const batteryService = await server.getPrimaryService('battery_service');
+          const batteryChar = await batteryService.getCharacteristic('battery_level');
+          const batteryValue = await batteryChar.readValue();
+          const batteryLevel = batteryValue.getUint8(0);
+          log(`Step 4: Battery Level: ${batteryLevel}%`, 'success');
+        } catch (e) {
+          log(`Step 4: Battery read: ${e.message}`, 'info');
+        }
+        
+        // Step 5-8: Read Device Info (Model, Serial, Firmware, Hardware)
+        // These are on the Device Information Service (0x180A)
+        try {
+          const deviceInfoService = await server.getPrimaryService('device_information');
+          
+          // Model Number
+          try {
+            const modelChar = await deviceInfoService.getCharacteristic('model_number_string');
+            const modelValue = await modelChar.readValue();
+            const model = new TextDecoder().decode(modelValue);
+            log(`Step 5: Model: ${model}`, 'success');
+          } catch (e) {
+            log(`Step 5: Model read: ${e.message}`, 'info');
+          }
+          
+          // Serial Number
+          try {
+            const serialChar = await deviceInfoService.getCharacteristic('serial_number_string');
+            const serialValue = await serialChar.readValue();
+            const serial = new TextDecoder().decode(serialValue);
+            log(`Step 6: Serial: ${serial}`, 'success');
+          } catch (e) {
+            log(`Step 6: Serial read: ${e.message}`, 'info');
+          }
+          
+          // Firmware Version
+          try {
+            const fwChar = await deviceInfoService.getCharacteristic('firmware_revision_string');
+            const fwValue = await fwChar.readValue();
+            const fw = new TextDecoder().decode(fwValue);
+            log(`Step 7: Firmware: ${fw}`, 'success');
+          } catch (e) {
+            log(`Step 7: Firmware read: ${e.message}`, 'info');
+          }
+          
+          // Hardware Version
+          try {
+            const hwChar = await deviceInfoService.getCharacteristic('hardware_revision_string');
+            const hwValue = await hwChar.readValue();
+            const hw = new TextDecoder().decode(hwValue);
+            log(`Step 8: Hardware: ${hw}`, 'success');
+          } catch (e) {
+            log(`Step 8: Hardware read: ${e.message}`, 'info');
+          }
+        } catch (e) {
+          log(`Steps 5-8: Device Info Service: ${e.message}`, 'info');
+        }
+        
+        // Step 9: Enable DATA_CHAR notifications (0x001B CCCD)
+        // This is the CCCD for DATA_CHAR
+        try {
+          const dataCccd = await dataChar.getDescriptor('2902');
+          await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
+          log('Step 9: DATA_CHAR notifications enabled', 'success');
+        } catch (e) {
+          log(`Step 9: DATA_CHAR CCCD: ${e.message}`, 'info');
+        }
+        
+        // Step 10: Enable STATUS_CHAR notifications (0x002F CCCD)
+        if (statusChar) {
+          try {
+            const statusCccd = await statusChar.getDescriptor('2902');
+            await statusCccd.writeValue(new Uint8Array([0x01, 0x00]));
+            log('Step 10: STATUS_CHAR notifications enabled', 'success');
+          } catch (e) {
+            log(`Step 10: STATUS_CHAR CCCD: ${e.message}`, 'info');
+          }
+        } else {
+          log('Step 10: STATUS_CHAR not available', 'info');
+        }
+        
+        // Step 11: START JOURNEY - Send 0A to COMMAND_CHAR
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        log('Step 11: Journey mode started (0A)', 'success');
+        journeyMode = true;
+        await new Promise(r => setTimeout(r, 200));
+        
+        // Step 12: Enable streaming feedback (0x0037 CCCD)
+        // This might be another CCCD for DATA_CHAR or a different characteristic
+        try {
+          const dataCccd2 = await dataChar.getDescriptor('2902');
+          await dataCccd2.writeValue(new Uint8Array([0x01, 0x00]));
+          log('Step 12: Streaming feedback enabled', 'success');
+        } catch (e) {
+          log(`Step 12: Streaming feedback: ${e.message}`, 'info');
+        }
+        
+        // Step 13: Begin streaming - send initial zero command
+        await dataChar.writeValue(buildStreamingCommand(0, 0x0002, 0));
+        log('Step 13: Initial zero command sent', 'success');
+        await new Promise(r => setTimeout(r, 100));
+        
+        // Step 14: Send first captured command
+        const cmd1 = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        await dataChar.writeValue(cmd1);
+        log('Step 14: First captured command sent (00320200cf31...)', 'success');
+        
+        // Step 15: Stream a few more commands
+        await new Promise(r => setTimeout(r, 150));
+        const cmd2 = new Uint8Array([0xD1, 0x2A, 0x02, 0x00, 0x73, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        await dataChar.writeValue(cmd2);
+        log('Step 15: Second command sent', 'success');
+        
+        await new Promise(r => setTimeout(r, 150));
+        const cmd3 = new Uint8Array([0x52, 0x24, 0x02, 0x00, 0xBF, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        await dataChar.writeValue(cmd3);
+        log('Step 16: Third command sent', 'success');
+        
+        log('=== INITIALIZATION COMPLETE ===', 'success');
+        log('Check if lights are on!', 'info');
+        
+      } catch (e) {
+        log(`Initialization error: ${e.message}`, 'error');
+        console.error(e);
+      }
+    };
+    
+    // Store controlService globally for fullInitSequence
+    let controlService = null;
+    let statusChar = null;
+    
+    // SIMPLIFIED: Just try the key missing steps
+    window.quickInitTest = async () => {
+      if (!server || !commandChar || !dataChar) { 
+        log('Not fully connected', 'error'); 
+        return; 
+      }
+      
+      log('=== QUICK INIT TEST ===', 'info');
+      
+      try {
+        // 1. Read device info (this might "wake up" the device)
+        try {
+          const deviceInfoService = await server.getPrimaryService('device_information');
+          const modelChar = await deviceInfoService.getCharacteristic('model_number_string');
+          const model = await modelChar.readValue();
+          log(`Device Model: ${new TextDecoder().decode(model)}`, 'success');
+        } catch (e) {
+          log(`Device info read: ${e.message}`, 'info');
+        }
+        
+        // 2. Enable all notifications we can find
+        if (controlService) {
+          const chars = await controlService.getCharacteristics();
+          for (const char of chars) {
+            if (char.properties.notify) {
+              try {
+                await char.startNotifications();
+                log(`Enabled notifications on ${char.uuid.slice(0,8)}...`, 'success');
+              } catch (e) {}
+            }
+          }
+        }
+        
+        // 3. Start journey mode
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        log('Journey mode started', 'success');
+        journeyMode = true;
+        await new Promise(r => setTimeout(r, 300));
+        
+        // 4. Send initial zero
+        await dataChar.writeValue(buildStreamingCommand(0, 0x0002, 0));
+        log('Initial zero sent', 'info');
+        await new Promise(r => setTimeout(r, 100));
+        
+        // 5. Send captured sequence
+        const cmd1 = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        await dataChar.writeValue(cmd1);
+        log('Captured cmd1 sent', 'success');
+        
+        await new Promise(r => setTimeout(r, 200));
+        
+        // 6. Stream a pattern
+        log('Streaming pattern...', 'info');
+        let ts = 0;
+        for (let i = 0; i < 10; i++) {
+          const intensity = Math.floor((Math.sin(i * 0.5) + 1) / 2 * 65535);
+          await dataChar.writeValue(buildStreamingCommand(intensity, 0x0002, ts));
+          ts += 100;
+          await new Promise(r => setTimeout(r, 100));
+        }
+        
+        log('Quick test complete - any lights?', 'success');
+      } catch (e) {
+        log(`Quick test error: ${e.message}`, 'error');
+        console.error(e);
+      }
     };
 
     renderPresets();
