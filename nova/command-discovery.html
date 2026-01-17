@@ -245,6 +245,18 @@
         return false;
       }
     }
+    
+    async function sendCommandWithReenable(hex, target = 'command') {
+      const result = await sendCommand(hex, target);
+      // Check if command contains 02ff (turn off) and re-enable
+      const hexLower = hex.toLowerCase().replace(/\s+/g, '');
+      if (hexLower === '02ff' || hexLower.includes('02ff')) {
+        await new Promise(r => setTimeout(r, 500));
+        await sendCommand('01ff', target);
+        log('Auto re-enabled after 02ff', 'warning');
+      }
+      return result;
+    }
 
     function sendManual() {
       const hex = document.getElementById('hexInput').value.trim();
@@ -304,7 +316,7 @@
 
       autoTestState = { pattern, testCases, index };
 
-      autoTestInterval = setInterval(() => {
+      autoTestInterval = setInterval(async () => {
         if (index >= testCases.length) {
           stopAutoTest();
           log('Auto test complete!', 'success');
@@ -312,8 +324,15 @@
         }
 
         const hex = testCases[index];
-        sendCommand(hex);
+        await sendCommand(hex);
         updateAutoTestStatus(`Testing ${index + 1}/${testCases.length}: ${hex}`);
+        
+        // If we sent 02ff (turn off), automatically re-enable with 01ff
+        if (hex.toLowerCase() === '02ff' || hex.toLowerCase().endsWith('02ff')) {
+          await new Promise(r => setTimeout(r, 500)); // Wait 500ms
+          await sendCommand('01ff');
+          log('Re-enabled light after 02ff', 'warning');
+        }
         
         index++;
         autoTestState.index = index;
@@ -346,29 +365,36 @@
         case 'double':
           for (let i = 0; i <= 0xFF; i++) {
             for (let j = 0; j <= 0xFF; j++) {
+              // Skip 02ff (turn off command)
+              if (i === 0x02 && j === 0xFF) continue;
               cases.push(i.toString(16).padStart(2, '0') + j.toString(16).padStart(2, '0'));
             }
           }
           break;
         case 'triple':
-          // 01ff + byte
+          // 01ff + byte (skip 02 to avoid 01ff02 which might turn off)
           for (let i = 0; i <= 0xFF; i++) {
+            // Skip if it would create 01ff02xx pattern that might turn off
+            if (i === 0x02) continue; // Skip 02 to avoid 01ff02
             cases.push('01ff' + i.toString(16).padStart(2, '0'));
           }
           break;
         case 'quad':
-          // 01ff + byte + byte
+          // 01ff + byte + byte (skip patterns that end with 02ff)
           for (let i = 0; i <= 0xFF; i++) {
             for (let j = 0; j <= 0xFF; j++) {
+              // Skip if second byte is 02 and third is FF (would create ...02ff)
+              if (i === 0x02 && j === 0xFF) continue;
               cases.push('01ff' + i.toString(16).padStart(2, '0') + j.toString(16).padStart(2, '0'));
             }
           }
           break;
         case 'known':
-          // Variants of 01ff
-          cases.push('01ff', 'ff01', '00ff', '01fe', '02ff', '01fd', '03ff', '10ff', 'ff10');
-          // 01ff + common values
+          // Variants of 01ff (exclude 02ff from known patterns)
+          cases.push('01ff', 'ff01', '00ff', '01fe', '01fd', '03ff', '10ff', 'ff10');
+          // 01ff + common values (skip 02)
           for (let i = 0; i <= 0x1F; i++) {
+            if (i === 0x02) continue; // Skip 02
             cases.push('01ff' + i.toString(16).padStart(2, '0'));
           }
           break;
