@@ -11,6 +11,7 @@ import { TransportBar } from './components/Transport/TransportBar';
 import { PresetBrowser } from './components/PresetBrowser/PresetBrowser';
 import { ExportDialog } from './components/ExportDialog/ExportDialog';
 import { BassGenerator } from './components/BassGenerator/BassGenerator';
+import { JourneyGenerator } from './components/JourneyGenerator/JourneyGenerator';
 
 type AppMode = 'journey' | 'bass';
 
@@ -99,7 +100,17 @@ function LayerToggles() {
 }
 
 function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: AppMode) => void }) {
-  const { journey, setShowPresetBrowser } = useJourneyStore();
+  const { journey, setShowPresetBrowser, setShowJourneyGenerator, saveCurrentJourney, isDirty, savedJourneyId } = useJourneyStore();
+  
+  const handleSave = () => {
+    try {
+      saveCurrentJourney();
+      alert('Journey saved!');
+    } catch (error) {
+      alert('Failed to save journey');
+      console.error(error);
+    }
+  };
 
   return (
     <header className="border-b border-white/10">
@@ -122,16 +133,41 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
         </div>
         <div className="flex items-center gap-3">
           {mode === 'journey' && (
-            <button
-              onClick={() => setShowPresetBrowser(true)}
-              className="px-4 py-2 rounded-lg bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-[var(--color-text)] text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              Browse Journeys
-            </button>
+            <>
+              <button
+                onClick={() => setShowJourneyGenerator(true)}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] hover:opacity-90 text-white text-sm font-medium transition-opacity flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2v20M2 12h20" />
+                </svg>
+                Create Journey
+              </button>
+              {(isDirty || savedJourneyId) && (
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 rounded-lg bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-[var(--color-text)] text-sm font-medium transition-colors flex items-center gap-2"
+                  title={savedJourneyId ? 'Update saved journey' : 'Save journey'}
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  {savedJourneyId ? 'Update' : 'Save'}
+                </button>
+              )}
+              <button
+                onClick={() => setShowPresetBrowser(true)}
+                className="px-4 py-2 rounded-lg bg-[var(--color-surface-light)] hover:bg-[var(--color-surface-light)]/80 text-[var(--color-text)] text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                </svg>
+                Browse Journeys
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -220,9 +256,10 @@ function App() {
         {mode === 'bass' && <BassGenerator />}
       </main>
 
-      {/* Modals (only for journey mode) */}
+      {/* Modals */}
       <PresetBrowser />
       <ExportDialog />
+      <JourneyGenerator />
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { create } from 'zustand';
 import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, ExportSettings, RenderProgress } from '../types/journey';
 import { DEFAULT_LAYERS, DEFAULT_EXPORT_SETTINGS } from '../types/journey';
 import { synthEngine } from '../audio/SynthEngine';
+import { generateJourney as generateJourneyApi } from '../api/journeyGeneratorApi';
+import { saveJourney, updateSavedJourney } from '../utils/journeyStorage';
 
 // Default journey configuration
 const defaultJourney: JourneyConfig = {
@@ -83,9 +85,18 @@ interface JourneyState {
   // UI state
   showPresetBrowser: boolean;
   showExportDialog: boolean;
+  showJourneyGenerator: boolean;
+
+  // Generation state
+  isGenerating: boolean;
+  generationError: string | null;
+  savedJourneyId: string | null; // ID of currently loaded saved journey
 
   // Actions
   setJourney: (journey: JourneyConfig) => void;
+  setJourneyWithId: (journey: JourneyConfig, savedId: string | null) => void;
+  saveCurrentJourney: () => string;
+  updateCurrentJourney: () => void;
   updatePhase: (index: number, updates: Partial<PhaseConfig>) => void;
   selectPhase: (index: number) => void;
   addPhase: () => void;
@@ -111,6 +122,10 @@ interface JourneyState {
   // UI actions
   setShowPresetBrowser: (show: boolean) => void;
   setShowExportDialog: (show: boolean) => void;
+  setShowJourneyGenerator: (show: boolean) => void;
+
+  // Generation actions
+  generateJourney: (prompt: string, duration: number) => Promise<void>;
 }
 
 export const useJourneyStore = create<JourneyState>((set, get) => ({
@@ -130,10 +145,20 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
 
   showPresetBrowser: false,
   showExportDialog: false,
+  showJourneyGenerator: false,
+
+  isGenerating: false,
+  generationError: null,
+  savedJourneyId: null,
 
   // Journey actions
   setJourney: (journey) => {
-    set({ journey, isDirty: false, selectedPhaseIndex: 0 });
+    set({ journey, isDirty: false, selectedPhaseIndex: 0, savedJourneyId: null });
+    synthEngine.setJourneyConfig(journey);
+  },
+
+  setJourneyWithId: (journey, savedId) => {
+    set({ journey, isDirty: false, selectedPhaseIndex: 0, savedJourneyId: savedId });
     synthEngine.setJourneyConfig(journey);
   },
 
@@ -262,6 +287,73 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
 
   setShowExportDialog: (show) => {
     set({ showExportDialog: show });
+  },
+
+  setShowJourneyGenerator: (show) => {
+    set({ showJourneyGenerator: show });
+  },
+
+  // Generation actions
+  generateJourney: async (prompt, duration) => {
+    set({ isGenerating: true, generationError: null });
+
+    try {
+      const journey = await generateJourneyApi(prompt, duration);
+      
+      // Auto-save generated journeys
+      const savedId = saveJourney(journey);
+      
+      set({ 
+        journey, 
+        isDirty: false, 
+        selectedPhaseIndex: 0,
+        savedJourneyId: savedId,
+      });
+      synthEngine.setJourneyConfig(journey);
+      set({ isGenerating: false, showJourneyGenerator: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate journey';
+      set({ isGenerating: false, generationError: errorMessage });
+      throw error;
+    }
+  },
+
+  // Save current journey
+  saveCurrentJourney: () => {
+    const { journey, savedJourneyId } = get();
+    
+    try {
+      if (savedJourneyId) {
+        // Update existing
+        updateSavedJourney(savedJourneyId, journey);
+        return savedJourneyId;
+      } else {
+        // Save new
+        const id = saveJourney(journey);
+        set({ savedJourneyId: id, isDirty: false });
+        return id;
+      }
+    } catch (error) {
+      console.error('Error saving journey:', error);
+      throw error;
+    }
+  },
+
+  // Update current saved journey
+  updateCurrentJourney: () => {
+    const { journey, savedJourneyId } = get();
+    
+    if (!savedJourneyId) {
+      throw new Error('No saved journey to update');
+    }
+    
+    try {
+      updateSavedJourney(savedJourneyId, journey);
+      set({ isDirty: false });
+    } catch (error) {
+      console.error('Error updating journey:', error);
+      throw error;
+    }
   },
 }));
 

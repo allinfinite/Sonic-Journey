@@ -7,6 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import { processAudioFile } from './audioProcessor.js';
+import { generateJourney } from './journeyGenerator.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -68,6 +69,38 @@ const handleUpload = (req: express.Request, res: express.Response, next: express
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Generate journey endpoint
+app.post('/api/generate-journey', async (req: express.Request, res: express.Response) => {
+  const { prompt, duration } = req.body;
+
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  if (!duration || typeof duration !== 'number' || duration < 5 || duration > 180) {
+    return res.status(400).json({ error: 'Duration must be between 5 and 180 minutes' });
+  }
+
+  console.log(`Generating journey: "${prompt}" (${duration} minutes)`);
+
+  try {
+    const journey = await generateJourney({ prompt, duration });
+    
+    console.log(`Journey generated: ${journey.name} with ${journey.phases.length} phases`);
+    
+    res.json({
+      success: true,
+      journey,
+    });
+  } catch (error) {
+    console.error('Journey generation error:', error);
+    res.status(500).json({
+      error: 'Journey generation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 });
 
 // Serve output files
@@ -173,5 +206,6 @@ app.post('/api/process', handleUpload, async (req: express.Request, res: express
 app.listen(PORT, () => {
   console.log(`🎵 Sonic Journey Server running on http://localhost:${PORT}`);
   console.log(`   POST /api/process - Upload and process audio`);
+  console.log(`   POST /api/generate-journey - Generate journey from prompt`);
   console.log(`   GET /api/health - Health check`);
 });

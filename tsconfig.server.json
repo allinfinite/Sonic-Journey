@@ -7,10 +7,13 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist-server",
-    "rootDir": "server",
     "declaration": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "../src/*": ["src/*"]
+    }
   },
-  "include": ["server/**/*.ts"],
+  "include": ["server/**/*.ts", "src/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
