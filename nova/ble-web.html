@@ -1239,18 +1239,65 @@
         await new Promise(r => setTimeout(r, 100));
         
         // Step 2: Enable DATA_CHAR notifications (0x0037 = 0100) - THIS IS AFTER 0A in capture!
-        if (!isConnected()) { log('Device disconnected!', 'error'); return; }
-        log('Step 2: Enabling DATA_CHAR notifications (0x0037 = 0100)...', 'info');
-        try {
-          const dataCccd = await dataChar.getDescriptor('2902');
-          await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
-          log('DATA_CHAR notifications enabled', 'success');
-        } catch (e) {
-          const errorMsg = e?.message || e?.toString() || String(e) || 'Unknown error';
-          log(`Failed to enable DATA_CHAR notifications: ${errorMsg}`, 'error');
-          log('Note: Notifications may already be enabled', 'info');
+        // NOTE: Notifications may already be enabled from initial connection, so we'll try but continue if it fails
+        if (!isConnected()) { log('Device disconnected!', 'error'); testRunning = false; return; }
+        log('Step 2: Checking/enabling DATA_CHAR notifications...', 'info');
+        
+        // Use Promise.race to add timeout
+        const cccdOperation = (async () => {
+          if (!isConnected() || !dataChar) return false;
+          try {
+            // Check if notifications are already enabled by reading the CCCD
+            const dataCccd = await dataChar.getDescriptor('2902');
+            try {
+              const currentValue = await dataCccd.readValue();
+              const currentBytes = new Uint8Array(currentValue.buffer);
+              const currentHex = Array.from(currentBytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+              log(`  Current CCCD value: ${currentHex}`, 'data');
+              
+              // If already enabled (0100 or 0200), skip write
+              if (currentBytes[0] === 0x01 || currentBytes[0] === 0x02) {
+                log('✓ DATA_CHAR notifications already enabled', 'success');
+                return true;
+              } else {
+                log('  Enabling notifications...', 'info');
+                await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
+                log('✓ DATA_CHAR notifications enabled', 'success');
+                return true;
+              }
+            } catch (readErr) {
+              // If read fails, try write anyway
+              log(`  Could not read CCCD, attempting write...`, 'info');
+              await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
+              log('✓ DATA_CHAR notifications enabled', 'success');
+              return true;
+            }
+          } catch (e) {
+            const errorMsg = e?.message || e?.toString() || String(e) || 'Unknown error';
+            log(`⚠ Failed to enable DATA_CHAR notifications: ${errorMsg}`, 'info');
+            log('  Continuing - notifications may already be enabled', 'info');
+            return false;
+          }
+        })();
+        
+        const timeout = new Promise((resolve) => {
+          setTimeout(() => {
+            log('⚠ CCCD operation timed out, continuing anyway...', 'info');
+            resolve(false);
+          }, 1500);
+        });
+        
+        await Promise.race([cccdOperation, timeout]);
+        
+        // Check connection after CCCD operation
+        if (!isConnected()) { 
+          log('❌ Device disconnected after CCCD operation!', 'error'); 
+          testRunning = false;
+          return; 
         }
-        await new Promise(r => setTimeout(r, 100));
+        
+        log('Step 2 complete, proceeding to wait for status...', 'info');
+        await new Promise(r => setTimeout(r, 200));
         
         // Step 3: Wait for status notifications (device should start sending them)
         if (!isConnected()) { log('Device disconnected!', 'error'); return; }
