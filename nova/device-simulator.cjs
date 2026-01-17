@@ -217,90 +217,72 @@ const batteryService = new bleno.PrimaryService({
   ]
 });
 
-// Track if services are set
-let servicesSet = false;
-
-// Set services first (before advertising)
-function setupServices() {
-  // Set all services to match the real device exactly
-  // Order: Control Service (primary), McuMgr Service, Battery Service
-  bleno.setServices([controlService, mcuMgrService, batteryService], (err) => {
-    if (err) {
-      console.warn('Service setup error (Battery may be restricted on macOS):', err.message);
-      // Try without battery service (macOS restriction)
-      bleno.setServices([controlService, mcuMgrService], (err2) => {
-        if (err2) {
-          console.error('Set services error:', err2);
-          servicesSet = false;
-        } else {
-          servicesSet = true;
-          console.log('Services set successfully');
-          console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
-          console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
-          console.log('  - Battery Service (skipped - macOS restriction)');
-          startAdvertising();
-        }
-      });
-    } else {
-      servicesSet = true;
-      console.log('Services set successfully');
-      console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
-      console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
-      console.log('  - Battery Service (180f)');
-      startAdvertising();
-    }
-  });
-}
-
-// Start advertising after services are set
-function startAdvertising() {
-  // Format UUIDs with dashes for advertising (bleno accepts both formats)
-  // The real device advertises these exact service UUIDs
-  const serviceUUIDs = [
-    CONTROL_SERVICE_UUID,  // 47bbfb1e670e4f81bfb378daffc9a783
-    MCUMGR_SERVICE_UUID     // b568de7cb6c642cb8303fcc9cb25007c
-  ];
-  
-  bleno.startAdvertising('Lumenate Nova', serviceUUIDs, (err) => {
-    if (err) {
-      console.error('Advertising error:', err);
-    } else {
-      console.log('\n✅ Advertising as "Lumenate Nova"');
-      console.log('   Service UUIDs in advertisement:');
-      console.log('   - 47bbfb1e-670e-4f81-bfb3-78daffc9a783 (Control)');
-      console.log('   - b568de7c-b6c6-42cb-8303-fcc9cb25007c (McuMgr)');
-      console.log('   Waiting for official app to connect...\n');
-      console.log('📱 Make sure:');
-      console.log('   - Your phone Bluetooth is on');
-      console.log('   - You\'re within Bluetooth range');
-      console.log('   - The official app is looking for devices\n');
-      console.log('⚠️  NOTE: iOS apps may not discover macOS BLE peripherals.');
-      console.log('   If the app can\'t find the device, try:');
-      console.log('   - Using an Android phone instead');
-      console.log('   - Running simulator on Linux/Raspberry Pi');
-      console.log('   - Using a BLE packet sniffer tool\n');
-    }
-  });
-}
-
 // Main
 bleno.on('stateChange', (state) => {
   console.log(`Bluetooth state: ${state}`);
   
   if (state === 'poweredOn') {
-    // Set services first, then advertise
-    setupServices();
+    // The app likely scans for specific service UUIDs, so we must advertise them
+    // Format UUIDs without dashes (bleno accepts both, but no dashes is more reliable)
+    const serviceUUIDs = [
+      CONTROL_SERVICE_UUID,  // 47bbfb1e670e4f81bfb378daffc9a783
+      MCUMGR_SERVICE_UUID    // b568de7cb6c642cb8303fcc9cb25007c
+    ];
+    
+    bleno.startAdvertising('Lumenate Nova', serviceUUIDs, (err) => {
+      if (err) {
+        console.error('❌ Advertising error:', err);
+        console.log('\nTroubleshooting:');
+        console.log('  - Make sure Bluetooth is enabled');
+        console.log('  - On macOS, you may need to run with sudo');
+        console.log('  - Try disconnecting other BLE devices\n');
+      } else {
+        console.log('\n✅ Advertising as "Lumenate Nova"');
+        console.log('   Service UUIDs in advertisement:');
+        console.log('   - 47bbfb1e-670e-4f81-bfb3-78daffc9a783 (Control)');
+        console.log('   - b568de7c-b6c6-42cb-8303-fcc9cb25007c (McuMgr)');
+        console.log('   Waiting for official app to connect...\n');
+        console.log('📱 Make sure:');
+        console.log('   - Your phone Bluetooth is on');
+        console.log('   - You\'re within Bluetooth range');
+        console.log('   - The official app is looking for devices');
+        console.log('   - Close other apps that might be connected to Nova\n');
+        console.log('💡 Tip: If the app still doesn\'t find it, try:');
+        console.log('   - Restart the Lumenate app');
+        console.log('   - Use the capture script: node nova/capture-advertising.cjs');
+        console.log('   - Compare real device advertising with simulator\n');
+      }
+    });
   } else {
     bleno.stopAdvertising();
-    servicesSet = false;
   }
 });
 
 bleno.on('advertisingStart', (err) => {
-  if (err) {
-    console.error('Advertising start error:', err);
-  } else {
-    console.log('✅ Advertising started successfully');
+  if (!err) {
+    // Set all services to match the real device exactly
+    // Order: Control Service (primary), McuMgr Service, Battery Service
+    bleno.setServices([controlService, mcuMgrService, batteryService], (err) => {
+      if (err) {
+        console.warn('Service setup error (Battery may be restricted on macOS):', err.message);
+        // Try without battery service (macOS restriction)
+        bleno.setServices([controlService, mcuMgrService], (err2) => {
+          if (err2) {
+            console.error('Set services error:', err2);
+          } else {
+            console.log('Services set successfully');
+            console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
+            console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
+            console.log('  - Battery Service (skipped - macOS restriction)');
+          }
+        });
+      } else {
+        console.log('Services set successfully');
+        console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
+        console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
+        console.log('  - Battery Service (180f)');
+      }
+    });
   }
 });
 
