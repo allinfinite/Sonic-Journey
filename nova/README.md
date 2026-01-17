@@ -36,9 +36,22 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
 ### Command Protocol
 
 **Known Working Commands**:
+- `01fa` - Turns on the light
+- `01fb` - Turns on the light
+- `01fc` - Turns on the light
+- `01fd` - Turns on the light
+- `01fe` - Turns on the light
 - `01ff` - Turns on the light
-- `01fe` - Turns on the light (indistinguishable from `01ff`)
 - `02ff` - Turns off the light
+
+**Note**: Commands `01fa` through `01ff` all appear to turn on the light. The differences (if any) may be subtle:
+- Different brightness levels
+- Different color temperatures
+- Different LED patterns (which LEDs are active)
+- Different intensity settings
+- Different modes that only become apparent during extended use
+
+All six commands (`01fa`-`01ff`) are currently used interchangeably in the interface, but they may have distinct purposes that require further investigation.
 
 **Critical Finding**: The device only responds to a few specific command codes. Most commands are ignored.
 
@@ -47,13 +60,19 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
 Since the device doesn't accept frequency parameters, flickering must be created **programmatically** by repeatedly sending `01ff` (or `01fe`) at the desired frequency.
 
 **Command Formats**:
-- `[0x01, 0xFF]` - Turn on light
-- `[0x01, 0xFE]` - Turn on light (indistinguishable from `01ff`)
+- `[0x01, 0xFA]` through `[0x01, 0xFF]` - All turn on the light (6 commands: 01fa, 01fb, 01fc, 01fd, 01fe, 01ff)
 - `[0x02, 0xFF]` - Turn off light
 
+**Note on 01fa-01ff**: All six commands appear to turn on the light. Potential differences (not yet confirmed):
+- Different brightness levels
+- Different color temperatures  
+- Different LED activation patterns (which LEDs are active)
+- Different intensity settings
+- Different modes that may only be apparent during extended use or specific conditions
+
 **How It Works**:
-1. Send `01ff` (or `01fe`) to turn on the light
-2. To create flickering at a specific frequency, send `01ff` repeatedly at intervals calculated as: `1000ms / frequency`
+1. Send any of `01fa`-`01ff` to turn on the light (currently using `01ff` in the interface)
+2. To create flickering at a specific frequency, send `01ff` (or any 01fa-01ff) repeatedly at intervals calculated as: `1000ms / frequency`
 3. Send `02ff` to turn off the light
 
 **Example Frequencies**:

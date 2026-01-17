@@ -153,6 +153,16 @@
     <div class="preset-grid" id="presets"></div>
   </div>
 
+  <div class="section" style="background: #1a1a2e; border: 1px dashed #444; border-radius: 10px; padding: 16px;">
+    <div class="section-title">Compare 01fa-01ff Commands</div>
+    <p style="font-size: 12px; color: #888; margin-bottom: 12px;">Test these commands side-by-side to detect differences (brightness, color, LED pattern, etc.)</p>
+    <div class="input-group">
+      <button onclick="compareCommands()">Compare All (01fa-01ff)</button>
+      <button onclick="stopComparison()" class="danger" id="stopCompareBtn" disabled>Stop</button>
+    </div>
+    <p style="font-size: 11px; color: #666; margin: 4px 0 0 0;">Cycles through each command for 3 seconds. Watch for differences in brightness, color, or which LEDs are active.</p>
+  </div>
+
   <div class="section auto-test" id="autoTestSection">
     <div class="section-title">Automated Discovery</div>
     <p style="font-size: 12px; color: #888; margin-bottom: 12px;">Systematically test command patterns. Watch the device and mark results.</p>
@@ -187,11 +197,16 @@
     let repeatInterval = null;
     let autoTestInterval = null;
     let autoTestState = null;
+    let comparisonInterval = null;
     let workingCommands = new Set();
 
     const PRESETS = [
-      { name: '01ff', hex: '01ff', desc: 'Turn on light (working)', working: true },
+      { name: '01fa', hex: '01fa', desc: 'Turn on light (working)', working: true },
+      { name: '01fb', hex: '01fb', desc: 'Turn on light (working)', working: true },
+      { name: '01fc', hex: '01fc', desc: 'Turn on light (working)', working: true },
+      { name: '01fd', hex: '01fd', desc: 'Turn on light (working)', working: true },
       { name: '01fe', hex: '01fe', desc: 'Turn on light (working)', working: true },
+      { name: '01ff', hex: '01ff', desc: 'Turn on light (working)', working: true },
       { name: '02ff', hex: '02ff', desc: 'Turn off light (working)', working: true },
       { name: 'ff01', hex: 'ff01', desc: 'Reversed' },
       { name: '00ff', hex: '00ff', desc: 'Zero + FF' },
@@ -293,6 +308,50 @@
         repeatInterval = null;
         document.getElementById('stopBtn').disabled = true;
         log('Stopped repeating', 'info');
+      }
+    }
+
+    async function compareCommands() {
+      if (!commandChar) { log('Not connected', 'error'); return; }
+      if (comparisonInterval) {
+        stopComparison();
+        return;
+      }
+
+      const commands = ['01fa', '01fb', '01fc', '01fd', '01fe', '01ff'];
+      let index = 0;
+
+      document.getElementById('stopCompareBtn').disabled = false;
+      log('Starting comparison: 01fa-01ff (3 seconds each)', 'info');
+
+      const sendNext = async () => {
+        if (index >= commands.length) {
+          stopComparison();
+          log('Comparison complete!', 'success');
+          return;
+        }
+
+        const hex = commands[index];
+        await sendCommand(hex);
+        log(`Testing ${hex} (${index + 1}/${commands.length}) - watch for differences`, 'info');
+        index++;
+
+        if (index < commands.length) {
+          comparisonInterval = setTimeout(sendNext, 3000); // 3 seconds per command
+        } else {
+          stopComparison();
+        }
+      };
+
+      await sendNext();
+    }
+
+    function stopComparison() {
+      if (comparisonInterval) {
+        clearTimeout(comparisonInterval);
+        comparisonInterval = null;
+        document.getElementById('stopCompareBtn').disabled = true;
+        log('Comparison stopped', 'info');
       }
     }
 
@@ -501,6 +560,7 @@
       dataChar = null;
       stopRepeating();
       stopAutoTest();
+      stopComparison();
     }
 
     renderPresets();
