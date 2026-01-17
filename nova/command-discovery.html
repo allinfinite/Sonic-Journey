@@ -190,11 +190,11 @@
     let workingCommands = new Set();
 
     const PRESETS = [
-      { name: '01ff', hex: '01ff', desc: 'Known working trigger' },
+      { name: '01ff', hex: '01ff', desc: 'Turn on light (working)', working: true },
+      { name: '01fe', hex: '01fe', desc: 'Turn on light (working)', working: true },
+      { name: '02ff', hex: '02ff', desc: 'Turn off light (working)', working: true },
       { name: 'ff01', hex: 'ff01', desc: 'Reversed' },
       { name: '00ff', hex: '00ff', desc: 'Zero + FF' },
-      { name: '01fe', hex: '01fe', desc: '01 + FE' },
-      { name: '02ff', hex: '02ff', desc: '02 + FF' },
       { name: '01ff00', hex: '01ff00', desc: '01ff + 00' },
       { name: '01ff01', hex: '01ff01', desc: '01ff + 01' },
       { name: '01ff03', hex: '01ff03', desc: '01ff + 03 (3Hz)' },
@@ -400,7 +400,7 @@
 
     function renderPresets() {
       const html = PRESETS.map(p => {
-        const isWorking = workingCommands.has(p.hex);
+        const isWorking = workingCommands.has(p.hex) || p.working;
         return `<button class="preset-btn ${isWorking ? 'active' : ''}" onclick="sendCommand('${p.hex}')" title="${p.desc}">
           ${p.name}${isWorking ? ' ✓' : ''}
         </button>`;

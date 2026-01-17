@@ -108,6 +108,9 @@
 
   <div class="section" style="margin-top: 24px;">
     <div id="presets"></div>
+    <div style="margin-top: 16px; text-align: center;">
+      <button onclick="stopFlicker()" class="danger" style="min-width: 200px;">Turn Off</button>
+    </div>
   </div>
 
   <div id="log">Tap Connect to start...</div>
@@ -173,7 +176,8 @@
       // For 3 Hz: 1000/3 = 333ms, for 6 Hz: 1000/6 = 167ms, etc.
       const intervalMs = Math.round(1000 / hz);
       
-      // Start flickering by sending 01ff repeatedly at the desired frequency
+      // Start flickering by sending 01ff (or 01fe, both work) repeatedly at the desired frequency
+      // Using 01ff as it's the known working command
       const trigger = [0x01, 0xFF];
       
       // Send first trigger immediately
@@ -200,6 +204,26 @@
       
       log(`Activated: ${state?.name || hz + ' Hz'} (flickering at ${hz} Hz, ${intervalMs}ms interval)`, 'success');
       renderPresets();
+    }
+
+    async function stopFlicker() {
+      if (!commandChar) { log('Not connected', 'error'); return; }
+      
+      // Stop the flicker interval
+      if (flickerInterval) {
+        clearInterval(flickerInterval);
+        flickerInterval = null;
+      }
+      
+      // Send 02ff to turn off the light
+      try {
+        await commandChar.writeValue(new Uint8Array([0x02, 0xFF]));
+        log('Light turned off (02ff)', 'success');
+        activeState = null;
+        renderPresets();
+      } catch (e) {
+        log(`Failed to turn off: ${e.message}`, 'error');
+      }
     }
 
     function renderPresets() {

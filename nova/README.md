@@ -35,17 +35,26 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
 
 ### Command Protocol
 
-**Critical Finding**: The device only responds to the command `01ff`. No other command codes activate the lights.
+**Known Working Commands**:
+- `01ff` - Turns on the light
+- `01fe` - Turns on the light (indistinguishable from `01ff`)
+- `02ff` - Turns off the light
+
+**Critical Finding**: The device only responds to a few specific command codes. Most commands are ignored.
 
 #### Flicker Control
 
-Since the device doesn't accept frequency parameters, flickering must be created **programmatically** by repeatedly sending `01ff` at the desired frequency.
+Since the device doesn't accept frequency parameters, flickering must be created **programmatically** by repeatedly sending `01ff` (or `01fe`) at the desired frequency.
 
-**Command Format**: `[0x01, 0xFF]`
+**Command Formats**:
+- `[0x01, 0xFF]` - Turn on light
+- `[0x01, 0xFE]` - Turn on light (indistinguishable from `01ff`)
+- `[0x02, 0xFF]` - Turn off light
 
 **How It Works**:
-1. Send `01ff` to turn on the light
+1. Send `01ff` (or `01fe`) to turn on the light
 2. To create flickering at a specific frequency, send `01ff` repeatedly at intervals calculated as: `1000ms / frequency`
+3. Send `02ff` to turn off the light
 
 **Example Frequencies**:
 - **3 Hz (Deep Sleep)**: Send `01ff` every 333ms
