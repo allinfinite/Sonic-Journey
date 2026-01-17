@@ -91,11 +91,29 @@ When running a journey in the app, watch for:
 - Try running with sudo (macOS)
 - Check if your Bluetooth adapter supports BLE peripheral mode
 
-### App can't find device
-- Make sure simulator is running and shows "Advertising as Lumenate Nova"
-- Make sure your phone's Bluetooth is on
-- Try disconnecting from any real Nova devices first
-- The simulator uses the exact same name and UUIDs as the real device
+### App can't find device (macOS limitation)
+
+**⚠️ Known Issue**: macOS BLE peripheral mode may not be discoverable by iOS devices. This is a platform limitation - iOS apps often cannot discover BLE peripherals advertised from macOS.
+
+**Solutions**:
+
+1. **Use a different device**:
+   - Run the simulator on a **Raspberry Pi** or **Linux machine** instead
+   - Linux has better BLE peripheral support for cross-platform discovery
+
+2. **Use a BLE sniffer**:
+   - Use a BLE packet sniffer tool (like nRF Sniffer, Wireshark with BLE plugin)
+   - Monitor traffic between the real Nova device and the official app
+   - This requires having the real device
+
+3. **Test with Android**:
+   - Android devices may be able to discover macOS BLE peripherals
+   - Try connecting with an Android phone if available
+
+4. **Verify advertising**:
+   - Make sure simulator shows "Advertising as Lumenate Nova"
+   - Check macOS Bluetooth settings - the device should appear there
+   - Try using a BLE scanner app (like LightBlue) to see if it's discoverable
 
 ### Permission errors
 - On macOS: Run with `sudo`

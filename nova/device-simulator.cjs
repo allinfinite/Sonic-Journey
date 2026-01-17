@@ -216,12 +216,23 @@ bleno.on('stateChange', (state) => {
   console.log(`Bluetooth state: ${state}`);
   
   if (state === 'poweredOn') {
-    bleno.startAdvertising('Lumenate Nova', [CONTROL_SERVICE_UUID, MCUMGR_SERVICE_UUID, BATTERY_SERVICE_UUID], (err) => {
+    // Advertise with service UUIDs - Battery Service may not be needed for discovery
+    bleno.startAdvertising('Lumenate Nova', [CONTROL_SERVICE_UUID, MCUMGR_SERVICE_UUID], (err) => {
       if (err) {
         console.error('Advertising error:', err);
       } else {
         console.log('\n✅ Advertising as "Lumenate Nova"');
+        console.log('   Services: Control, McuMgr');
         console.log('   Waiting for official app to connect...\n');
+        console.log('📱 Make sure:');
+        console.log('   - Your phone Bluetooth is on');
+        console.log('   - You\'re within Bluetooth range');
+        console.log('   - The official app is looking for devices\n');
+        console.log('⚠️  NOTE: iOS apps may not discover macOS BLE peripherals.');
+        console.log('   If the app can\'t find the device, try:');
+        console.log('   - Using an Android phone instead');
+        console.log('   - Running simulator on Linux/Raspberry Pi');
+        console.log('   - Using a BLE packet sniffer tool\n');
       }
     });
   } else {
@@ -231,9 +242,20 @@ bleno.on('stateChange', (state) => {
 
 bleno.on('advertisingStart', (err) => {
   if (!err) {
+    // Try to set services - Battery Service may fail on macOS due to restrictions
     bleno.setServices([controlService, batteryService], (err) => {
       if (err) {
-        console.error('Set services error:', err);
+        console.warn('Battery service error (may be restricted on macOS):', err.message);
+        // Try without battery service
+        bleno.setServices([controlService], (err2) => {
+          if (err2) {
+            console.error('Set services error:', err2);
+          } else {
+            console.log('Services set successfully');
+            console.log('  - Control Service (required)');
+            console.log('  - Battery Service (skipped - macOS restriction)');
+          }
+        });
       } else {
         console.log('Services set successfully');
         console.log('  - Control Service');
