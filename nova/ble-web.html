@@ -158,29 +158,47 @@
     }
 
     async function activateState(hz) {
-      if (!commandChar) { log('Not connected', 'error'); return; }
+      if (!commandChar && !window.dataChar) { log('Not connected', 'error'); return; }
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Send 01ff + frequency together each time (01ff turns on light, frequency sets the rate)
-      const bytes = [0x01, 0xFF, hz];
-      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      try {
-        await commandChar.writeValue(new Uint8Array(bytes));
-        log(`Activated: ${state?.name || hz + ' Hz'} (${hex})`, 'success');
-      } catch (e) {
-        log(`Failed: ${e.message}`, 'error');
-        // Fallback: try DATA_CHAR
-        if (window.dataChar) {
-          try {
-            await window.dataChar.writeValue(new Uint8Array(bytes));
-            log(`Sent to DATA_CHAR: ${hex}`, 'info');
-          } catch (e2) {
-            log(`DATA_CHAR also failed: ${e2.message}`, 'error');
-          }
+      // Try multiple approaches - maybe frequency needs to go to DATA_CHAR
+      // Approach 1: Just frequency byte to DATA_CHAR (01ff already sent to COMMAND_CHAR)
+      if (window.dataChar) {
+        try {
+          await window.dataChar.writeValue(new Uint8Array([hz]));
+          log(`Activated: ${state?.name || hz + ' Hz'} (freq ${hz} to DATA_CHAR)`, 'success');
+          renderPresets();
+          return;
+        } catch (e) {
+          log(`DATA_CHAR freq-only failed: ${e.message}`, 'error');
         }
       }
+      
+      // Approach 2: 01ff + frequency to DATA_CHAR
+      if (window.dataChar) {
+        try {
+          const bytes = [0x01, 0xFF, hz];
+          await window.dataChar.writeValue(new Uint8Array(bytes));
+          log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')} to DATA_CHAR)`, 'success');
+          renderPresets();
+          return;
+        } catch (e) {
+          log(`DATA_CHAR 01ff+freq failed: ${e.message}`, 'error');
+        }
+      }
+      
+      // Approach 3: 01ff + frequency to COMMAND_CHAR (original)
+      if (commandChar) {
+        try {
+          const bytes = [0x01, 0xFF, hz];
+          await commandChar.writeValue(new Uint8Array(bytes));
+          log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')} to COMMAND_CHAR)`, 'success');
+        } catch (e) {
+          log(`COMMAND_CHAR failed: ${e.message}`, 'error');
+        }
+      }
+      
       renderPresets();
     }
 
