@@ -228,8 +228,13 @@ bleno.on('stateChange', (state) => {
     // - Services are discovered AFTER connection via GATT
     // - No manufacturer data
     // - Connectable: Yes
+    // - In pairing/discoverable mode
     //
-    // This matches exactly how the real device works!
+    // bleno.startAdvertising automatically makes the device:
+    // - Connectable (can accept connections)
+    // - Discoverable (visible to scanners)
+    // - In "pairing mode" (ready to pair)
+    console.log('Starting advertising in pairing/discoverable mode...');
     bleno.startAdvertising('Lumenate Nova', [], (err) => {
       if (err) {
         console.error('❌ Advertising error:', err);
@@ -238,7 +243,9 @@ bleno.on('stateChange', (state) => {
         console.log('  - On macOS, you may need to run with sudo');
         console.log('  - Try disconnecting other BLE devices\n');
       } else {
-        console.log('\n✅ Advertising as "Lumenate Nova" (name only - matches real device)');
+        console.log('\n✅ Device is now in PAIRING/DISCOVERABLE MODE');
+        console.log('   Advertising as: "Lumenate Nova"');
+        console.log('   Status: Connectable & Discoverable');
         console.log('   Services will be discovered after connection via GATT');
         console.log('   Waiting for official app to connect...\n');
         console.log('📱 Make sure:');
@@ -246,10 +253,11 @@ bleno.on('stateChange', (state) => {
         console.log('   - You\'re within Bluetooth range');
         console.log('   - The official app is looking for devices');
         console.log('   - Close other apps that might be connected to Nova\n');
-        console.log('💡 This now matches the real device exactly:');
+        console.log('💡 This matches the real device exactly:');
         console.log('   - Name: "Lumenate Nova"');
         console.log('   - No service UUIDs in advertising');
-        console.log('   - Services available after connection\n');
+        console.log('   - Connectable: Yes');
+        console.log('   - Ready for pairing\n');
       }
     });
   } else {
@@ -259,6 +267,9 @@ bleno.on('stateChange', (state) => {
 
 bleno.on('advertisingStart', (err) => {
   if (!err) {
+    console.log('✅ Advertising started - device is now discoverable and connectable');
+    console.log('   Pairing mode: ACTIVE\n');
+    
     // Set all services to match the real device exactly
     // Order: Control Service (primary), McuMgr Service, Battery Service
     bleno.setServices([controlService, mcuMgrService, batteryService], (err) => {
@@ -269,19 +280,23 @@ bleno.on('advertisingStart', (err) => {
           if (err2) {
             console.error('Set services error:', err2);
           } else {
-            console.log('Services set successfully');
+            console.log('✅ Services set successfully (ready for connection)');
             console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
             console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
             console.log('  - Battery Service (skipped - macOS restriction)');
+            console.log('\n🔗 Device is ready to accept connections from the official app\n');
           }
         });
       } else {
-        console.log('Services set successfully');
+        console.log('✅ Services set successfully (ready for connection)');
         console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
         console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
         console.log('  - Battery Service (180f)');
+        console.log('\n🔗 Device is ready to accept connections from the official app\n');
       }
     });
+  } else {
+    console.error('❌ Advertising start failed:', err);
   }
 });
 
