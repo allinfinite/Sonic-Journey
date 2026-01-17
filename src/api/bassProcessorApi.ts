@@ -4,7 +4,23 @@
 
 import type { BassGeneratorConfig, AnalysisResult, BassProgress } from '../types/bassGenerator';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Determine API URL: use env var, or detect from current origin, or fallback to localhost
+function getApiUrl(): string {
+  // Use explicit env var if set
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production, use same origin (API should be on same domain)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // Development fallback
+  return 'http://localhost:3001';
+}
+
+const API_URL = getApiUrl();
 
 export interface ServerProcessingResult {
   success: boolean;

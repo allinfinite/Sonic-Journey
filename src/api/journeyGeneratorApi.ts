@@ -4,7 +4,23 @@
 
 import type { JourneyConfig } from '../types/journey';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Determine API URL: use env var, or detect from current origin, or fallback to localhost
+function getApiUrl(): string {
+  // Use explicit env var if set
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production, use same origin (API should be on same domain)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  
+  // Development fallback
+  return 'http://localhost:3001';
+}
+
+const API_URL = getApiUrl();
 
 export interface GenerateJourneyRequest {
   prompt: string;
@@ -16,6 +32,21 @@ export interface GenerateJourneyResponse {
   journey: JourneyConfig;
   error?: string;
   message?: string;
+}
+
+/**
+ * Check if the server is available
+ */
+async function checkServerHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/api/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000), // 3 second timeout
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -33,6 +64,17 @@ export async function generateJourney(
     throw new Error('Duration must be between 5 and 180 minutes');
   }
 
+  // Check if server is available first (skip in production to avoid CORS issues)
+  if (!import.meta.env.PROD) {
+    const serverAvailable = await checkServerHealth();
+    if (!serverAvailable) {
+      throw new Error(
+        'Server is not available. Please ensure the server is running on port 3001. ' +
+        'Run "npm run dev:server" in a separate terminal.'
+      );
+    }
+  }
+
   try {
     const response = await fetch(`${API_URL}/api/generate-journey`, {
       method: 'POST',
@@ -40,11 +82,27 @@ export async function generateJourney(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ prompt, duration }),
+    }).catch((fetchError) => {
+      // Handle network errors (including ERR_BLOCKED_BY_CLIENT)
+      if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
+        throw new Error(
+          'Failed to connect to server. Please ensure the server is running on port 3001. ' +
+          'If you have a browser extension blocking requests, try disabling it or adding localhost to allowlist.'
+        );
+      }
+      throw fetchError;
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `Server error: ${response.status}`);
+      let errorMessage = `Server error: ${response.status}`;
+      try {
+        const error = await response.json();
+        errorMessage = error.message || errorMessage;
+      } catch {
+        // If response is not JSON, use status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     const result: GenerateJourneyResponse = await response.json();
