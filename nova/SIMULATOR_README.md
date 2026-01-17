@@ -31,9 +31,8 @@ sudo setcap cap_net_raw+eip $(eval readlink -f `which node`)
 
 1. **Start the simulator**:
    ```bash
-   node nova/device-simulator.js
-   # or with sudo on macOS:
-   sudo node nova/device-simulator.js
+   cd /Users/daniellevy/Code/Sonic-Journey
+   sudo node nova/device-simulator.cjs
    ```
 
 2. **You should see**:

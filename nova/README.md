@@ -231,7 +231,7 @@ The `device-simulator.js` tool simulates the Nova device to capture commands fro
 **Usage**:
 ```bash
 npm install @abandonware/bleno
-node nova/device-simulator.js
+sudo node nova/device-simulator.cjs
 # Then connect with official app and start a journey
 ```
 
