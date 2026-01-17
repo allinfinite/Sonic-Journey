@@ -19,6 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Check for API key
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set');
+    return res.status(500).json({
+      error: 'Server configuration error',
+      message: 'OPENAI_API_KEY environment variable is not set. Please configure it in Vercel project settings.',
+    });
+  }
+
   const { prompt, duration } = req.body;
 
   if (!prompt || typeof prompt !== 'string') {
@@ -42,9 +51,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Journey generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    // Log full error for debugging
+    console.error('Full error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      type: error?.constructor?.name,
+    });
+    
     return res.status(500).json({
       error: 'Journey generation failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: errorMessage,
+      // Include stack in development/debugging
+      ...(process.env.VERCEL_ENV !== 'production' && errorStack ? { stack: errorStack } : {}),
     });
   }
 }
