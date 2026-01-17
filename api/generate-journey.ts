@@ -3,7 +3,22 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateJourney } from '../server/journeyGenerator';
+
+// Dynamic import to handle potential module resolution issues
+let generateJourneyFunction: ((request: { prompt: string; duration: number }) => Promise<any>) | null = null;
+
+async function getGenerateJourney() {
+  if (!generateJourneyFunction) {
+    try {
+      const module = await import('../server/journeyGenerator');
+      generateJourneyFunction = module.generateJourney;
+    } catch (error) {
+      console.error('Failed to import journeyGenerator:', error);
+      throw new Error(`Failed to load journey generator module: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  return generateJourneyFunction;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Handle CORS
@@ -41,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log(`Generating journey: "${prompt}" (${duration} minutes)`);
 
   try {
+    const generateJourney = await getGenerateJourney();
     const journey = await generateJourney({ prompt, duration });
     
     console.log(`Journey generated: ${journey.name} with ${journey.phases.length} phases`);
