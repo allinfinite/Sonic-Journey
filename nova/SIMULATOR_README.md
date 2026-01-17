@@ -19,7 +19,7 @@ npm install @abandonware/bleno
 
 **Note**: On macOS, you may need to run with sudo for BLE peripheral support:
 ```bash
-sudo node nova/device-simulator.js
+sudo node nova/device-simulator.cjs
 ```
 
 On Linux, you may need to set capabilities:
