@@ -126,7 +126,7 @@
     let device = null;
     let server = null;
     let commandChar = null;
-    let deviceInitialized = false;
+    let flickerInterval = null;
 
     // --- Simplified states: click to activate ---
     const STATES = [
@@ -158,34 +158,47 @@
     }
 
     async function activateState(hz) {
-      if (!commandChar && !window.dataChar) { log('Not connected', 'error'); return; }
+      if (!commandChar) { log('Not connected', 'error'); return; }
+      
+      // Stop any existing flicker
+      if (flickerInterval) {
+        clearInterval(flickerInterval);
+        flickerInterval = null;
+      }
+      
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Send 01ff + frequency to DATA_CHAR (device receives freq bytes but doesn't change without 01ff)
-      if (window.dataChar) {
-        try {
-          const bytes = [0x01, 0xFF, hz];
-          await window.dataChar.writeValue(new Uint8Array(bytes));
-          log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')} to DATA_CHAR)`, 'success');
-          renderPresets();
+      // Calculate interval: 1000ms / frequency = ms between flashes
+      // For 3 Hz: 1000/3 = 333ms, for 6 Hz: 1000/6 = 167ms, etc.
+      const intervalMs = Math.round(1000 / hz);
+      
+      // Start flickering by sending 01ff repeatedly at the desired frequency
+      const trigger = [0x01, 0xFF];
+      
+      // Send first trigger immediately
+      try {
+        await commandChar.writeValue(new Uint8Array(trigger));
+      } catch (e) {
+        log(`Failed to start flicker: ${e.message}`, 'error');
+        return;
+      }
+      
+      // Then send 01ff repeatedly at the desired frequency
+      flickerInterval = setInterval(async () => {
+        if (!commandChar) {
+          clearInterval(flickerInterval);
+          flickerInterval = null;
           return;
-        } catch (e) {
-          log(`DATA_CHAR failed: ${e.message}`, 'error');
         }
-      }
-      
-      // Fallback: 01ff + frequency to COMMAND_CHAR
-      if (commandChar) {
         try {
-          const bytes = [0x01, 0xFF, hz];
-          await commandChar.writeValue(new Uint8Array(bytes));
-          log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')} to COMMAND_CHAR)`, 'success');
+          await commandChar.writeValue(new Uint8Array(trigger));
         } catch (e) {
-          log(`COMMAND_CHAR failed: ${e.message}`, 'error');
+          // Silent fail - connection might be lost
         }
-      }
+      }, intervalMs);
       
+      log(`Activated: ${state?.name || hz + ' Hz'} (flickering at ${hz} Hz, ${intervalMs}ms interval)`, 'success');
       renderPresets();
     }
 
@@ -314,17 +327,6 @@
           window.dataChar = dataChar;
           window.commandChar = commandChar;
           
-          // Initialize device: send 01ff trigger once
-          if (commandChar && !deviceInitialized) {
-            try {
-              await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
-              log('Device initialized with 01ff trigger', 'success');
-              deviceInitialized = true;
-            } catch (e) {
-              log('Initialization failed: ' + e.message, 'error');
-            }
-          }
-          
           renderPresets();
         } catch (e) {
           log('Control service error: ' + e.message, 'error');
@@ -349,11 +351,17 @@
       document.getElementById('connectBtn').disabled = false;
       document.getElementById('disconnectBtn').disabled = true;
       document.getElementById('battery').style.display = 'none';
+      
+      // Stop flickering
+      if (flickerInterval) {
+        clearInterval(flickerInterval);
+        flickerInterval = null;
+      }
+      
       device = null;
       server = null;
       commandChar = null;
       activeState = null;
-      deviceInitialized = false;
       renderPresets();
     }
 
