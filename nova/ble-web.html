@@ -126,6 +126,7 @@
     let device = null;
     let server = null;
     let commandChar = null;
+    let deviceInitialized = false;
 
     // --- Simplified states: click to activate ---
     const STATES = [
@@ -161,16 +162,45 @@
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Format: 01ff + frequency byte to COMMAND_CHAR (the working approach)
-      const bytes = buildFlickerCommand(hz);
-      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      // Try multiple approaches:
+      // 1. Just send frequency byte (after 01ff was sent at init)
+      // 2. Send 01ff + frequency together
+      // 3. Try DATA_CHAR
+      // 4. Try reversed: ff01 + frequency
       
+      // Approach 1: Just frequency byte (assuming 01ff was sent at init)
       try {
-        await commandChar.writeValue(new Uint8Array(bytes));
-        log(`Activated: ${state?.name || hz + ' Hz'} (${hex})`, 'success');
+        await commandChar.writeValue(new Uint8Array([hz]));
+        log(`Activated: ${state?.name || hz + ' Hz'} (frequency: 0x${hz.toString(16)})`, 'success');
+        renderPresets();
+        return;
       } catch (e) {
-        log(`Failed: ${e.message}`, 'error');
+        log(`Frequency-only failed: ${e.message}`, 'error');
       }
+      
+      // Approach 2: 01ff + frequency together
+      try {
+        const bytes = [0x01, 0xFF, hz];
+        await commandChar.writeValue(new Uint8Array(bytes));
+        log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')})`, 'success');
+        renderPresets();
+        return;
+      } catch (e) {
+        log(`01ff+freq failed: ${e.message}`, 'error');
+      }
+      
+      // Approach 3: Try DATA_CHAR
+      if (window.dataChar) {
+        try {
+          await window.dataChar.writeValue(new Uint8Array([hz]));
+          log(`Activated: ${state?.name || hz + ' Hz'} (to DATA_CHAR: 0x${hz.toString(16)})`, 'success');
+          renderPresets();
+          return;
+        } catch (e) {
+          log(`DATA_CHAR failed: ${e.message}`, 'error');
+        }
+      }
+      
       renderPresets();
     }
 
@@ -298,6 +328,18 @@
           // Store dataChar globally for testing
           window.dataChar = dataChar;
           window.commandChar = commandChar;
+          
+          // Initialize device: send 01ff trigger once
+          if (commandChar && !deviceInitialized) {
+            try {
+              await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
+              log('Device initialized with 01ff trigger', 'success');
+              deviceInitialized = true;
+            } catch (e) {
+              log('Initialization failed: ' + e.message, 'error');
+            }
+          }
+          
           renderPresets();
         } catch (e) {
           log('Control service error: ' + e.message, 'error');
@@ -326,6 +368,7 @@
       server = null;
       commandChar = null;
       activeState = null;
+      deviceInitialized = false;
       renderPresets();
     }
 
