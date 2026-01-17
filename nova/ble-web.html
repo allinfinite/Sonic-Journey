@@ -1,61 +1,238 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Lumenate Nova BLE Connection</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Lumenate Nova</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      max-width: 800px;
-      margin: 50px auto;
+      margin: 0;
       padding: 20px;
       background: #1a1a2e;
       color: #eee;
+      min-height: 100vh;
     }
-    h1 { color: #00d4ff; }
+    h1 { color: #00d4ff; font-size: 24px; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
+    .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
     button {
       background: #00d4ff;
       color: #1a1a2e;
       border: none;
-      padding: 15px 30px;
+      padding: 16px 24px;
       font-size: 16px;
+      font-weight: 600;
       cursor: pointer;
-      border-radius: 8px;
-      margin: 10px 5px;
+      border-radius: 12px;
+      flex: 1;
+      min-width: 140px;
     }
-    button:hover { background: #00a8cc; }
-    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    button:active { background: #00a8cc; transform: scale(0.98); }
+    button:disabled { background: #444; color: #666; cursor: not-allowed; }
+    button.danger { background: #ff6b6b; }
     #log {
       background: #0d0d1a;
-      padding: 20px;
-      border-radius: 8px;
-      font-family: monospace;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
       white-space: pre-wrap;
-      max-height: 500px;
+      word-break: break-all;
+      max-height: 40vh;
       overflow-y: auto;
       margin-top: 20px;
+      line-height: 1.4;
     }
-    .service { color: #ff6b6b; font-weight: bold; }
-    .char { color: #4ecdc4; margin-left: 20px; }
-    .props { color: #ffe66d; margin-left: 40px; }
     .success { color: #51cf66; }
     .error { color: #ff6b6b; }
     .data { color: #ffd93d; }
+    .service { color: #ff6b6b; font-weight: bold; }
+    .char { color: #4ecdc4; }
+    .info { color: #74c0fc; }
+    #battery {
+      font-size: 18px;
+      margin: 15px 0;
+      padding: 12px;
+      background: #252547;
+      border-radius: 8px;
+      display: none;
+    }
+
+    /* Effects */
+    .section { margin-bottom: 24px; }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00d4ff;
+      margin-bottom: 10px;
+    }
+    .band-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .preset {
+      background: #252547;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .preset:hover { border-color: #00d4ff; background: #2a2a52; }
+    .preset:disabled { opacity: 0.5; cursor: not-allowed; }
+    .preset .hz { font-size: 18px; font-weight: 700; color: #00d4ff; margin-bottom: 2px; }
+    .preset .band { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .preset .effect { font-size: 12px; color: #bbb; line-height: 1.35; }
+    .preset.alpha .hz { color: #a78bfa; }
+    .preset.sweet .hz { color: #fbbf24; }
+    .preset .badge { font-size: 10px; background: #3730a3; color: #a5b4fc; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+
+    .pattern-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .pattern-row label { font-size: 13px; color: #999; margin-right: 4px; }
+    .pattern-btn {
+      padding: 10px 16px;
+      font-size: 13px;
+      background: #252547;
+      color: #ddd;
+      border: 1px solid #444;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .pattern-btn.active { background: #1e3a5f; border-color: #00d4ff; color: #00d4ff; }
+    .pattern-btn:hover:not(.active) { border-color: #666; }
+
+    .ctrl-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .ctrl-row label { font-size: 13px; color: #999; min-width: 70px; }
+    .ctrl-row input[type="number"] {
+      width: 70px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #252547;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #eee;
+    }
+    .ctrl-row input[type="range"] { flex: 1; min-width: 120px; max-width: 200px; }
+
+    .seq-card {
+      background: #1a1a2e;
+      border: 1px dashed #444;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .seq-card .seq-title { font-weight: 600; color: #a78bfa; margin-bottom: 4px; }
+    .seq-card .seq-desc { font-size: 12px; color: #888; margin-bottom: 10px; }
+    .seq-card button { min-width: auto; flex: none; }
+
+    .raw-row { margin-top: 12px; }
+    .raw-row input {
+      width: 100%;
+      padding: 10px 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      background: #0d0d1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #ffd93d;
+    }
   </style>
 </head>
 <body>
-  <h1>🔮 Lumenate Nova BLE Connection</h1>
-  <p>Connect to your Lumenate Nova device using Web Bluetooth API</p>
+  <h1>Lumenate Nova</h1>
+  <p class="subtitle">Neural entrainment · Flicker frequency controls brain-state</p>
 
-  <div>
-    <button id="connectBtn" onclick="connectDevice()">Connect to Lumenate Nova</button>
-    <button id="disconnectBtn" onclick="disconnectDevice()" disabled>Disconnect</button>
+  <div id="battery"></div>
+
+  <div class="buttons">
+    <button id="connectBtn" onclick="connectDevice()">Connect</button>
+    <button id="disconnectBtn" onclick="disconnectDevice()" disabled class="danger">Disconnect</button>
   </div>
 
-  <div id="log">Ready. Click "Connect" to scan for device...</div>
+  <div class="section">
+    <div class="section-title">Frequency-based effects</div>
+    <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">By band: Delta (sleep/relax) → Theta (meditative) → Alpha (visuals, flow) → Beta (focus) → Gamma (cognitive). Rhythmic flicker supports neural entrainment; >20 Hz may feel intense.</p>
+    <div class="band-grid" id="presets"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Pattern</div>
+    <div class="pattern-row">
+      <span class="pattern-btn active" data-pattern="rhythmic" onclick="setPattern('rhythmic')">Rhythmic</span>
+      <span class="pattern-btn" data-pattern="ramp" onclick="setPattern('ramp')">Ramp: Focus → Flow → Deep</span>
+    </div>
+    <p style="font-size: 12px; color: #666; margin: 0 0 12px 0;">Rhythmic, periodic flashes support stronger neural entrainment than random flicker.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Custom & duration</div>
+    <div class="ctrl-row">
+      <label>Custom Hz</label>
+      <input type="number" id="customHz" min="1" max="50" value="10" placeholder="1–50">
+      <label>Duration (min)</label>
+      <input type="number" id="durationMin" min="0" max="60" value="10" placeholder="0=infinite">
+    </div>
+    <div class="buttons">
+      <button onclick="applyCustom()">Apply custom</button>
+    </div>
+  </div>
+
+  <div class="section seq-card">
+    <div class="seq-title">Ramp: Focus → Flow → Deep</div>
+    <div class="seq-desc">Beta 15 Hz → Alpha 10 Hz → Theta 6 Hz. Each phase ~3 min (~9 min total). Guided descent from focus into deep states.</div>
+    <button onclick="runRampSequence()">Run ramp sequence</button>
+  </div>
+
+  <div class="section raw-row">
+    <div class="section-title">Raw command (hex)</div>
+    <p style="font-size: 11px; color: #555; margin: 0 0 6px 0;">Default format: cmd, freq_Hz, duration_min, pattern. Adjust if your Nova protocol differs.</p>
+    <input type="text" id="rawHex" placeholder="e.g. 010a0a00 (10 Hz, 10 min, rhythmic)" spellcheck="false">
+    <div class="buttons" style="margin-top: 8px;">
+      <button onclick="sendRaw()">Send raw</button>
+    </div>
+  </div>
+
+  <p style="font-size: 11px; color: #444; margin-top: 16px;">Stimulation can increase EEG diversity, suppress the default-mode network, and enhance emotional response to music.</p>
+
+  <div id="log">Tap Connect to start...</div>
 
   <script>
+    // Known Lumenate Nova Service UUIDs
+    const CONTROL_SERVICE = '47bbfb1e-670e-4f81-bfb3-78daffc9a783';
+    const MCUMGR_SERVICE = 'b568de7c-b6c6-42cb-8303-fcc9cb25007c';
+    const BATTERY_SERVICE = '0000180f-0000-1000-8000-00805f9b34fb';
+
+    // Characteristics
+    const DATA_CHAR = '2b35ef1f-11a6-4089-8cd5-843c5d0c9c55';
+    const COMMAND_CHAR = '3e25a3bf-bfe1-4c71-97c5-5bdb73fac89e';
+    const STATUS_CHAR = '964fbffe-6940-4371-8d48-fe43b07ed00b';
+
     let device = null;
     let server = null;
+    let commandChar = null;
+    let currentPattern = 'rhythmic';
+
+    // --- Flicker effects: frequency bands and neural/entrainment labels ---
+    const EFFECTS = [
+      // Delta (~1–4 Hz): deep relaxation, sleep onset
+      { hz: 1,  band: 'Delta',  effect: 'Deep relaxation, onset of sleep',           tag: '1–4 Hz', css: '' },
+      { hz: 2,  band: 'Delta',  effect: 'Tranquil, drowsy',                         tag: '1–4 Hz', css: '' },
+      { hz: 3,  band: 'Delta',  effect: 'Deep trance, insomnia relief',            tag: '1–4 Hz', css: '' },
+      // Theta (~4–7 Hz): meditative, hypnagogic, creative
+      { hz: 5,  band: 'Theta',  effect: 'Meditative, dreamlike imagery',             tag: '4–7 Hz', css: '' },
+      { hz: 6,  band: 'Theta',  effect: 'Hypnagogic, creative, visionary',          tag: '4–7 Hz', css: '' },
+      // Alpha (~8–12 Hz): vivid closed-eye visuals, flow
+      { hz: 8,  band: 'Alpha',  effect: 'Calm alertness, reduced mental chatter',    tag: '8–12 Hz', css: 'alpha' },
+      { hz: 10, band: 'Alpha',  effect: 'Vivid kaleidoscopic patterns, mandalas',  tag: '8–12 Hz', css: 'alpha sweet', badge: 'Best for visuals' },
+      { hz: 12, band: 'Alpha',  effect: 'Flow states, geometric visuals',          tag: '8–12 Hz', css: 'alpha' },
+      // Beta (~13–30 Hz): alertness, focus; >20 Hz can be uncomfortable
+      { hz: 15, band: 'Beta',   effect: 'Alertness, focus, mental energy',         tag: '13–30 Hz', css: '' },
+      { hz: 20, band: 'Beta',   effect: 'Focus (may be intense for some)',          tag: '13–30 Hz', css: '' },
+      // Gamma (30–50+ Hz): cognitive enhancement
+      { hz: 40, band: 'Gamma',  effect: 'Cognitive enhancement, research (e.g. memory)', tag: '30–50+ Hz', css: '' },
+    ];
 
     function log(msg, className = '') {
       const logEl = document.getElementById('log');
@@ -70,93 +247,178 @@
       document.getElementById('log').innerHTML = '';
     }
 
+    // Build BLE flicker command. Format may need adjustment for actual Nova protocol.
+    // Plausible: [cmd=0x01, freq_Hz, duration_min, pattern: 0=rhythmic 1=ramp]
+    function buildFlickerCommand(freqHz, durationMin, pattern) {
+      const p = pattern === 'ramp' ? 1 : 0;
+      return [0x01, Math.max(1, Math.min(50, Math.round(freqHz))), Math.max(0, Math.min(60, Math.round(durationMin))), p];
+    }
+
+    function sendFlicker(freqHz, durationMin, pattern) {
+      const dur = durationMin ?? (parseInt(document.getElementById('durationMin').value, 10) || 10);
+      const pat = pattern ?? currentPattern;
+      const bytes = buildFlickerCommand(freqHz, dur, pat);
+      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      return sendCommand(hex);
+    }
+
+    function setPattern(name) {
+      currentPattern = name;
+      document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.pattern-btn[data-pattern="${name}"]`)?.classList.add('active');
+    }
+
+    function applyCustom() {
+      const hz = parseInt(document.getElementById('customHz').value, 10);
+      const dur = parseInt(document.getElementById('durationMin').value, 10);
+      if (isNaN(hz) || hz < 1 || hz > 50) { log('Custom Hz must be 1–50', 'error'); return; }
+      sendFlicker(hz, dur, currentPattern);
+    }
+
+    async function runRampSequence() {
+      if (!commandChar) { log('Not connected', 'error'); return; }
+      const phases = [
+        { hz: 15, label: 'Beta 15 Hz (focus)' },
+        { hz: 10, label: 'Alpha 10 Hz (flow)' },
+        { hz: 6,  label: 'Theta 6 Hz (deep)' },
+      ];
+      const phaseMin = 3;
+      log('Ramp: Focus → Flow → Deep (3 min each)', 'info');
+      for (const p of phases) {
+        if (!commandChar) { log('Disconnected during ramp.', 'error'); break; }
+        log(`  → ${p.label}`, 'info');
+        try {
+          const bytes = buildFlickerCommand(p.hz, phaseMin, 'rhythmic');
+          await commandChar.writeValue(new Uint8Array(bytes));
+        } catch (e) { log('Ramp write failed: ' + e.message, 'error'); break; }
+        await new Promise(r => setTimeout(r, phaseMin * 60 * 1000));
+      }
+      log('Ramp sequence done.', 'success');
+    }
+
+    function sendRaw() {
+      const raw = (document.getElementById('rawHex').value || '').replace(/\s+/g, '');
+      if (!raw || !/^[0-9a-fA-F]+$/.test(raw)) { log('Enter valid hex (e.g. 010a0a00)', 'error'); return; }
+      if (raw.length % 2) { log('Hex must have even length', 'error'); return; }
+      sendCommand(raw);
+    }
+
+    function renderPresets() {
+      const disabled = !commandChar;
+      const html = EFFECTS.map(e => {
+        const extra = e.css ? ` ${e.css}` : '';
+        const badge = e.badge ? `<span class="badge">${e.badge}</span>` : '';
+        return `<button class="preset${extra}" data-hz="${e.hz}" ${disabled ? 'disabled' : ''} type="button">
+          <span class="hz">${e.hz} Hz${badge}</span>
+          <span class="band">${e.band} ${e.tag}</span>
+          <span class="effect">${e.effect}</span>
+        </button>`;
+      }).join('');
+      document.getElementById('presets').innerHTML = html;
+      document.getElementById('presets').querySelectorAll('.preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          const hz = parseInt(btn.dataset.hz, 10);
+          const d = parseInt(document.getElementById('durationMin').value, 10) || 10;
+          sendFlicker(hz, d, currentPattern);
+          log(`Sent: ${hz} Hz — ${EFFECTS.find(x => x.hz === hz)?.effect || ''}`, 'success');
+        });
+      });
+    }
+
     async function connectDevice() {
       clearLog();
       log('Scanning for Lumenate Nova...');
 
       try {
-        // Request device - accept any device since we filter by name
         device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'Lumenate' }],
-          optionalServices: [] // Will discover all services
+          optionalServices: [CONTROL_SERVICE, MCUMGR_SERVICE, BATTERY_SERVICE, '180f']
         });
 
-        log(`✓ Found: ${device.name}`, 'success');
-        log(`  ID: ${device.id}`);
-
+        log('Found: ' + device.name, 'success');
         device.addEventListener('gattserverdisconnected', onDisconnected);
 
-        log('\nConnecting to GATT server...');
+        log('Connecting...');
         server = await device.gatt.connect();
-        log('✓ Connected!', 'success');
+        log('Connected!', 'success');
 
         document.getElementById('connectBtn').disabled = true;
         document.getElementById('disconnectBtn').disabled = false;
 
-        // Discover services
-        log('\nDiscovering services...');
-        const services = await server.getPrimaryServices();
-        log(`\nFound ${services.length} services:\n`);
-
-        for (const service of services) {
-          log(`Service: ${service.uuid}`, 'service');
-
-          try {
-            const characteristics = await service.getCharacteristics();
-
-            for (const char of characteristics) {
-              log(`  └─ ${char.uuid}`, 'char');
-
-              const props = [];
-              if (char.properties.read) props.push('read');
-              if (char.properties.write) props.push('write');
-              if (char.properties.writeWithoutResponse) props.push('writeWithoutResponse');
-              if (char.properties.notify) props.push('notify');
-              if (char.properties.indicate) props.push('indicate');
-
-              log(`     Properties: ${props.join(', ')}`, 'props');
-
-              // Try to read if readable
-              if (char.properties.read) {
-                try {
-                  const value = await char.readValue();
-                  const bytes = new Uint8Array(value.buffer);
-                  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
-                  log(`     Value: ${hex}`, 'data');
-                } catch (e) {
-                  log(`     Read error: ${e.message}`, 'error');
-                }
-              }
-
-              // Subscribe to notifications
-              if (char.properties.notify) {
-                try {
-                  await char.startNotifications();
-                  char.addEventListener('characteristicvaluechanged', (event) => {
-                    const value = event.target.value;
-                    const bytes = new Uint8Array(value.buffer);
-                    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
-                    log(`[NOTIFY ${char.uuid.slice(0,8)}] ${hex}`, 'data');
-                  });
-                  log(`     ✓ Subscribed to notifications`, 'success');
-                } catch (e) {
-                  log(`     Notify error: ${e.message}`, 'error');
-                }
-              }
-            }
-          } catch (e) {
-            log(`  Error getting characteristics: ${e.message}`, 'error');
-          }
-
-          log('');
+        // Get Battery Level
+        try {
+          const batteryService = await server.getPrimaryService('battery_service');
+          const batteryChar = await batteryService.getCharacteristic('battery_level');
+          const batteryValue = await batteryChar.readValue();
+          const batteryLevel = batteryValue.getUint8(0);
+          document.getElementById('battery').style.display = 'block';
+          document.getElementById('battery').textContent = `Battery: ${batteryLevel}%`;
+          log(`Battery: ${batteryLevel}%`, 'info');
+        } catch (e) {
+          log('Battery read skipped', 'info');
         }
 
-        log('\n========================================');
-        log('Device ready! Listening for notifications...', 'success');
-        log('========================================\n');
+        // Discover Control Service
+        log('\nDiscovering services...');
+
+        try {
+          const controlService = await server.getPrimaryService(CONTROL_SERVICE);
+          log('\nControl Service found!', 'service');
+
+          const chars = await controlService.getCharacteristics();
+          for (const char of chars) {
+            const uuid = char.uuid;
+            const props = [];
+            if (char.properties.read) props.push('read');
+            if (char.properties.write) props.push('write');
+            if (char.properties.writeWithoutResponse) props.push('writeNoResp');
+            if (char.properties.notify) props.push('notify');
+
+            log(`  ${uuid.slice(0,8)}... (${props.join(', ')})`, 'char');
+
+            // Store command characteristic
+            if (uuid === COMMAND_CHAR) {
+              commandChar = char;
+              log('  ^ Command char ready', 'success');
+              renderPresets();
+            }
+
+            // Subscribe to notifications
+            if (char.properties.notify) {
+              try {
+                await char.startNotifications();
+                char.addEventListener('characteristicvaluechanged', (e) => {
+                  const bytes = new Uint8Array(e.target.value.buffer);
+                  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                  log(`[${uuid.slice(0,8)}] ${hex}`, 'data');
+                });
+                log('  ^ Subscribed', 'success');
+              } catch (err) {
+                // Silent fail for notify
+              }
+            }
+
+            // Read initial value
+            if (char.properties.read) {
+              try {
+                const val = await char.readValue();
+                const bytes = new Uint8Array(val.buffer);
+                const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                log(`  Value: ${hex}`, 'data');
+              } catch (err) {
+                // Silent fail for read
+              }
+            }
+          }
+        } catch (e) {
+          log('Control service error: ' + e.message, 'error');
+        }
+
+        log('\n--- Ready! Listening for data ---', 'success');
 
       } catch (err) {
-        log(`Error: ${err.message}`, 'error');
+        log('Error: ' + err.message, 'error');
         console.error(err);
       }
     }
@@ -168,12 +430,28 @@
     }
 
     function onDisconnected() {
-      log('\nDevice disconnected.', 'error');
+      log('\nDisconnected', 'error');
       document.getElementById('connectBtn').disabled = false;
       document.getElementById('disconnectBtn').disabled = true;
+      document.getElementById('battery').style.display = 'none';
       device = null;
       server = null;
+      commandChar = null;
+      renderPresets();
     }
+
+    // Expose for console use
+    window.sendCommand = async (hexString) => {
+      if (!commandChar) {
+        log('Not connected', 'error');
+        return;
+      }
+      const bytes = hexString.match(/.{1,2}/g).map(b => parseInt(b, 16));
+      await commandChar.writeValue(new Uint8Array(bytes));
+      log('Sent: ' + hexString, 'success');
+    };
+
+    renderPresets();
   </script>
 </body>
 </html>
