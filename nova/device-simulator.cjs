@@ -203,6 +203,12 @@ const controlService = new bleno.PrimaryService({
   ]
 });
 
+// McuMgr Service (for firmware updates - minimal implementation)
+const mcuMgrService = new bleno.PrimaryService({
+  uuid: MCUMGR_SERVICE_UUID,
+  characteristics: [] // Empty for now, just needs to exist
+});
+
 // Battery Service
 const batteryService = new bleno.PrimaryService({
   uuid: BATTERY_SERVICE_UUID,
@@ -216,7 +222,8 @@ bleno.on('stateChange', (state) => {
   console.log(`Bluetooth state: ${state}`);
   
   if (state === 'poweredOn') {
-    // Advertise with service UUIDs - Battery Service may not be needed for discovery
+    // Advertise with service UUIDs exactly as the real device does
+    // Both UUIDs must be included for the app to recognize it
     bleno.startAdvertising('Lumenate Nova', [CONTROL_SERVICE_UUID, MCUMGR_SERVICE_UUID], (err) => {
       if (err) {
         console.error('Advertising error:', err);
@@ -242,24 +249,27 @@ bleno.on('stateChange', (state) => {
 
 bleno.on('advertisingStart', (err) => {
   if (!err) {
-    // Try to set services - Battery Service may fail on macOS due to restrictions
-    bleno.setServices([controlService, batteryService], (err) => {
+    // Set all services to match the real device exactly
+    // Order: Control Service (primary), McuMgr Service, Battery Service
+    bleno.setServices([controlService, mcuMgrService, batteryService], (err) => {
       if (err) {
-        console.warn('Battery service error (may be restricted on macOS):', err.message);
-        // Try without battery service
-        bleno.setServices([controlService], (err2) => {
+        console.warn('Service setup error (Battery may be restricted on macOS):', err.message);
+        // Try without battery service (macOS restriction)
+        bleno.setServices([controlService, mcuMgrService], (err2) => {
           if (err2) {
             console.error('Set services error:', err2);
           } else {
             console.log('Services set successfully');
-            console.log('  - Control Service (required)');
+            console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
+            console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
             console.log('  - Battery Service (skipped - macOS restriction)');
           }
         });
       } else {
         console.log('Services set successfully');
-        console.log('  - Control Service');
-        console.log('  - Battery Service');
+        console.log('  - Control Service (47bbfb1e-670e-4f81-bfb3-78daffc9a783)');
+        console.log('  - McuMgr Service (b568de7c-b6c6-42cb-8303-fcc9cb25007c)');
+        console.log('  - Battery Service (180f)');
       }
     });
   }
