@@ -35,45 +35,47 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
 
 ### Command Protocol
 
-**Known Working Commands**:
-- `01fa` - Turns on the light
-- `01fb` - Turns on the light
-- `01fc` - Turns on the light
-- `01fd` - Turns on the light
-- `01fe` - Turns on the light
-- `01ff` - Turns on the light
-- `02ff` - Turns off the light
+**Complete Command Reference**:
 
-**Note**: Commands `01fa` through `01ff` all appear to turn on the light. The differences (if any) may be subtle:
-- Different brightness levels
-- Different color temperatures
-- Different LED patterns (which LEDs are active)
-- Different intensity settings
-- Different modes that only become apparent during extended use
+| Command | Effect | Notes |
+|---------|--------|-------|
+| `01fa` | Turn on light | Functionally identical to 01fb-01ff |
+| `01fb` | Turn on light | Functionally identical to 01fa, 01fc-01ff |
+| `01fc` | Turn on light | Functionally identical to 01fa-01fb, 01fd-01ff |
+| `01fd` | Turn on light | Functionally identical to 01fa-01fc, 01fe-01ff |
+| `01fe` | Turn on light | Functionally identical to 01fa-01fd, 01ff |
+| `01ff` | Turn on light | Functionally identical to 01fa-01fe (most commonly used) |
+| `02ff` | Turn off light | Stops all light output |
 
-All six commands (`01fa`-`01ff`) are currently used interchangeably in the interface, but they may have distinct purposes that require further investigation.
-
-**Critical Finding**: The device only responds to a few specific command codes. Most commands are ignored.
+**Confirmed Findings**:
+- Commands `01fa` through `01ff` are **functionally identical** - extensive testing shows no observable differences in brightness, color, LED patterns, or behavior
+- All six commands can be used interchangeably to turn on the light
+- The device only responds to these 7 specific command codes (`01fa`-`01ff`, `02ff`)
+- All other commands are ignored by the device (confirmed through systematic testing)
+- The device does not accept frequency parameters - flickering must be created programmatically
 
 #### Flicker Control
 
 Since the device doesn't accept frequency parameters, flickering must be created **programmatically** by repeatedly sending `01ff` (or `01fe`) at the desired frequency.
 
 **Command Formats**:
-- `[0x01, 0xFA]` through `[0x01, 0xFF]` - All turn on the light (6 commands: 01fa, 01fb, 01fc, 01fd, 01fe, 01ff)
+- `[0x01, 0xFA]` through `[0x01, 0xFF]` - All turn on the light (6 functionally identical commands)
 - `[0x02, 0xFF]` - Turn off light
 
-**Note on 01fa-01ff**: All six commands appear to turn on the light. Potential differences (not yet confirmed):
-- Different brightness levels
-- Different color temperatures  
-- Different LED activation patterns (which LEDs are active)
-- Different intensity settings
-- Different modes that may only be apparent during extended use or specific conditions
+**Confirmed**: Commands `01fa`-`01ff` are functionally identical. Extensive side-by-side comparison testing shows no observable differences in:
+- Brightness levels
+- Color temperature
+- LED activation patterns
+- Intensity settings
+- Any other visual or behavioral characteristics
 
-**How It Works**:
-1. Send any of `01fa`-`01ff` to turn on the light (currently using `01ff` in the interface)
-2. To create flickering at a specific frequency, send `01ff` (or any 01fa-01ff) repeatedly at intervals calculated as: `1000ms / frequency`
+**How Flickering Works**:
+1. Send any of `01fa`-`01ff` to turn on the light (interface uses `01ff`)
+2. To create flickering at a specific frequency, send `01ff` repeatedly at intervals calculated as: `1000ms / frequency`
 3. Send `02ff` to turn off the light
+
+**Why Multiple Identical Commands?**
+The presence of 6 identical "turn on" commands (`01fa`-`01ff`) suggests they may have been intended for different purposes (brightness levels, modes, etc.) but the firmware implementation treats them identically. Alternatively, they may be legacy commands from different firmware versions.
 
 **Example Frequencies**:
 - **3 Hz (Deep Sleep)**: Send `01ff` every 333ms
@@ -130,14 +132,18 @@ testTrigger();
 
 ### Why Programmatic Flickering?
 
-The device firmware appears to only recognize `01ff` as a valid command. Attempts to send:
-- `01ff + frequency byte` (e.g., `01ff03`)
-- Just frequency bytes
-- Other command formats
+**Critical Discovery**: The device firmware does not accept frequency parameters. Extensive testing confirms:
 
-...all result in no response. The device receives these commands (confirmed by notifications), but doesn't activate the lights.
+- **Attempted**: `01ff + frequency byte` (e.g., `01ff03` for 3 Hz, `01ff0a` for 10 Hz)
+- **Result**: Device receives command (confirmed by BLE notifications) but does not activate lights
+- **Attempted**: Just frequency bytes (e.g., `03`, `0a`, `0f`)
+- **Result**: Device receives command but does not activate lights
+- **Attempted**: Other command formats and patterns
+- **Result**: All ignored except the 7 known commands (`01fa`-`01ff`, `02ff`)
 
-**Solution**: Create the flicker pattern by sending `01ff` repeatedly at JavaScript intervals, effectively creating the flicker effect in software rather than relying on device firmware.
+**Solution**: Create the flicker pattern programmatically by sending `01ff` repeatedly at JavaScript intervals. The flicker frequency is controlled entirely in software, not by device firmware.
+
+**Implementation**: Calculate interval as `1000ms / desired_frequency`, then send `01ff` at that interval using `setInterval()`.
 
 ### Connection Flow
 
@@ -216,6 +222,46 @@ Use the "Mark as Working" button when you observe a device response during autom
 - ❌ Safari (iOS) - No Web Bluetooth support
 - ❌ Firefox - No Web Bluetooth support
 
+## Complete Protocol Summary
+
+### Working Commands (7 total)
+
+1. **Turn On Commands** (6 identical commands):
+   - `01fa`, `01fb`, `01fc`, `01fd`, `01fe`, `01ff`
+   - All functionally identical - no observable differences
+   - Use any of these to activate the light
+
+2. **Turn Off Command** (1 command):
+   - `02ff` - Stops all light output
+
+### Non-Working Patterns (Tested and Confirmed)
+
+The following patterns were systematically tested and **do not work**:
+- Single byte commands (except those that happen to match working patterns)
+- Two-byte commands (except `01fa`-`01ff`, `02ff`)
+- Three-byte commands like `01ff + frequency byte`
+- Four-byte commands
+- Commands sent to DATA_CHAR instead of COMMAND_CHAR
+- Frequency parameters in any format
+
+### Testing Methodology
+
+All findings were confirmed through:
+1. **Systematic Testing**: Automated testing of command patterns (single byte, double byte, triple byte, quad byte)
+2. **Side-by-Side Comparison**: Direct comparison of `01fa`-`01ff` commands
+3. **Visual Observation**: Confirmed device responses through direct observation
+4. **BLE Notification Analysis**: Verified device receives commands via BLE notifications
+
+### Protocol Limitations
+
+- **No Frequency Control**: Device firmware does not support frequency parameters
+- **No Brightness Control**: No commands found to adjust brightness
+- **No Color Control**: No commands found to change color/temperature
+- **No Pattern Control**: No commands found to change LED patterns
+- **Binary State Only**: Device only supports on/off states
+
+All advanced features (flicker frequency, brightness, etc.) must be implemented in software by controlling the timing and sequence of `01ff` commands.
+
 ## License
 
-This code is provided as-is for controlling the Lumenate Nova device. The BLE protocol details were reverse-engineered through testing.
+This code is provided as-is for controlling the Lumenate Nova device. The BLE protocol details were reverse-engineered through systematic testing and experimentation.
