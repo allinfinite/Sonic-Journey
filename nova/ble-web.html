@@ -157,29 +157,58 @@
     }
 
     async function activateState(hz) {
-      if (!commandChar) { log('Not connected', 'error'); return; }
+      if (!commandChar && !window.dataChar) { log('Not connected', 'error'); return; }
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Format: 01ff + frequency byte
-      const bytes = buildFlickerCommand(hz);
-      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      // Try multiple approaches:
+      // 1. Send 01ff trigger first, then frequency to DATA_CHAR
+      // 2. Send 01ff + freq to DATA_CHAR
+      // 3. Send 01ff + freq to COMMAND_CHAR
       
-      try {
-        await commandChar.writeValue(new Uint8Array(bytes));
-        log(`Activated: ${state?.name || hz + ' Hz'} (${hex})`, 'success');
-      } catch (e) {
-        log(`Failed: ${e.message}`, 'error');
-        // Try DATA_CHAR as fallback
-        if (window.dataChar) {
-          try {
-            await window.dataChar.writeValue(new Uint8Array(bytes));
-            log(`Sent to DATA_CHAR instead: ${hex}`, 'info');
-          } catch (e2) {
-            log(`DATA_CHAR also failed: ${e2.message}`, 'error');
-          }
+      const trigger = [0x01, 0xFF];
+      const freqByte = [hz];
+      
+      // Approach 1: Send 01ff trigger, then frequency to DATA_CHAR
+      if (window.dataChar) {
+        try {
+          await window.dataChar.writeValue(new Uint8Array(trigger));
+          log(`Sent trigger 01ff to DATA_CHAR`, 'info');
+          await new Promise(r => setTimeout(r, 50)); // Small delay
+          await window.dataChar.writeValue(new Uint8Array(freqByte));
+          log(`Sent frequency ${hz} (0x${hz.toString(16)}) to DATA_CHAR`, 'info');
+          log(`Activated: ${state?.name || hz + ' Hz'}`, 'success');
+          renderPresets();
+          return;
+        } catch (e) {
+          log(`DATA_CHAR approach failed: ${e.message}`, 'error');
         }
       }
+      
+      // Approach 2: Send 01ff + freq together to DATA_CHAR
+      if (window.dataChar) {
+        try {
+          const combined = [0x01, 0xFF, hz];
+          await window.dataChar.writeValue(new Uint8Array(combined));
+          log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')} to DATA_CHAR)`, 'success');
+          renderPresets();
+          return;
+        } catch (e) {
+          log(`DATA_CHAR combined failed: ${e.message}`, 'error');
+        }
+      }
+      
+      // Approach 3: Send 01ff + freq to COMMAND_CHAR
+      if (commandChar) {
+        try {
+          const bytes = buildFlickerCommand(hz);
+          await commandChar.writeValue(new Uint8Array(bytes));
+          log(`Activated: ${state?.name || hz + ' Hz'} (${bytes.map(b => b.toString(16).padStart(2, '0')).join('')} to COMMAND_CHAR)`, 'success');
+        } catch (e) {
+          log(`COMMAND_CHAR failed: ${e.message}`, 'error');
+        }
+      }
+      
       renderPresets();
     }
 
