@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova Command Discovery</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+    }
+    h1 { color: #00d4ff; font-size: 24px; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
+    .section { margin-bottom: 24px; }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #00d4ff;
+      margin-bottom: 10px;
+    }
+    button {
+      background: #00d4ff;
+      color: #1a1a2e;
+      border: none;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:active { background: #00a8cc; }
+    button:disabled { background: #444; color: #666; cursor: not-allowed; }
+    button.danger { background: #ff6b6b; }
+    button.success { background: #51cf66; }
+    
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input[type="text"], input[type="number"] {
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #252547;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #eee;
+      font-family: ui-monospace, monospace;
+    }
+    input[type="text"] { min-width: 200px; }
+    input[type="number"] { width: 80px; }
+    
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .preset-btn {
+      padding: 10px;
+      background: #252547;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #ddd;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: center;
+    }
+    .preset-btn:hover { border-color: #00d4ff; background: #2a2a52; }
+    .preset-btn.active { border-color: #00d4ff; background: #1e3a5f; }
+    
+    #log {
+      background: #0d0d1a;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 50vh;
+      overflow-y: auto;
+      margin-top: 20px;
+      line-height: 1.4;
+    }
+    .success { color: #51cf66; }
+    .error { color: #ff6b6b; }
+    .info { color: #74c0fc; }
+    .warning { color: #ffd93d; }
+    .data { color: #ffd93d; }
+    
+    .test-result {
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 6px;
+      background: #252547;
+      border-left: 3px solid #444;
+    }
+    .test-result.working {
+      border-left-color: #51cf66;
+      background: #1a2e1a;
+    }
+    .test-result.partial {
+      border-left-color: #ffd93d;
+      background: #2e2a1a;
+    }
+    
+    .auto-test {
+      background: #1a1a2e;
+      border: 1px dashed #444;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .auto-test.active {
+      border-color: #00d4ff;
+      background: #1e3a5f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Nova Command Discovery</h1>
+  <p class="subtitle">Systematically test commands to find what triggers device responses</p>
+
+  <div class="buttons">
+    <button id="connectBtn" onclick="connectDevice()">Connect</button>
+    <button id="disconnectBtn" onclick="disconnectDevice()" disabled class="danger">Disconnect</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Manual Command Test</div>
+    <div class="input-group">
+      <input type="text" id="hexInput" placeholder="Enter hex (e.g. 01ff)" spellcheck="false">
+      <button onclick="sendManual()">Send</button>
+      <button onclick="sendRepeatedly()">Send Repeatedly (100ms)</button>
+      <button onclick="stopRepeating()" class="danger" id="stopBtn" disabled>Stop</button>
+    </div>
+    <p style="font-size: 11px; color: #666; margin: 0;">Enter hex bytes (e.g., "01ff" or "01 ff 03"). Watch the device for any visual response.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Quick Presets</div>
+    <div class="preset-grid" id="presets"></div>
+  </div>
+
+  <div class="section auto-test" id="autoTestSection">
+    <div class="section-title">Automated Discovery</div>
+    <p style="font-size: 12px; color: #888; margin-bottom: 12px;">Systematically test command patterns. Watch the device and mark results.</p>
+    <div class="input-group">
+      <label style="color: #999; font-size: 12px;">Pattern:</label>
+      <select id="patternSelect" style="padding: 8px; background: #252547; border: 1px solid #444; border-radius: 6px; color: #eee;">
+        <option value="single">Single Byte (00-FF)</option>
+        <option value="double">Two Bytes (00-FF, 00-FF)</option>
+        <option value="triple">Three Bytes (01ff + 00-FF)</option>
+        <option value="quad">Four Bytes (01ff + 00-FF + 00-FF)</option>
+        <option value="known">Known Patterns (01ff variants)</option>
+      </select>
+      <button onclick="startAutoTest()" id="autoTestBtn">Start Auto Test</button>
+      <button onclick="stopAutoTest()" class="danger" id="stopAutoBtn" disabled>Stop</button>
+      <button onclick="markWorking()" class="success" id="markBtn" disabled>✓ Mark as Working</button>
+    </div>
+    <div id="autoTestStatus" style="margin-top: 12px; font-size: 12px; color: #888;"></div>
+    <div id="testResults" style="margin-top: 12px; max-height: 200px; overflow-y: auto;"></div>
+  </div>
+
+  <div id="log">Tap Connect to start...</div>
+
+  <script>
+    const CONTROL_SERVICE = '47bbfb1e-670e-4f81-bfb3-78daffc9a783';
+    const COMMAND_CHAR = '3e25a3bf-bfe1-4c71-97c5-5bdb73fac89e';
+    const DATA_CHAR = '2b35ef1f-11a6-4089-8cd5-843c5d0c9c55';
+
+    let device = null;
+    let server = null;
+    let commandChar = null;
+    let dataChar = null;
+    let repeatInterval = null;
+    let autoTestInterval = null;
+    let autoTestState = null;
+    let workingCommands = new Set();
+
+    const PRESETS = [
+      { name: '01ff', hex: '01ff', desc: 'Known working trigger' },
+      { name: 'ff01', hex: 'ff01', desc: 'Reversed' },
+      { name: '00ff', hex: '00ff', desc: 'Zero + FF' },
+      { name: '01fe', hex: '01fe', desc: '01 + FE' },
+      { name: '02ff', hex: '02ff', desc: '02 + FF' },
+      { name: '01ff00', hex: '01ff00', desc: '01ff + 00' },
+      { name: '01ff01', hex: '01ff01', desc: '01ff + 01' },
+      { name: '01ff03', hex: '01ff03', desc: '01ff + 03 (3Hz)' },
+      { name: '01ff0a', hex: '01ff0a', desc: '01ff + 10 (10Hz)' },
+      { name: '01ff0f', hex: '01ff0f', desc: '01ff + 15 (15Hz)' },
+    ];
+
+    function log(msg, className = '') {
+      const logEl = document.getElementById('log');
+      const line = document.createElement('div');
+      line.className = className;
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    function hexToBytes(hex) {
+      const cleaned = hex.replace(/\s+/g, '');
+      if (!/^[0-9a-fA-F]+$/.test(cleaned) || cleaned.length % 2) {
+        throw new Error('Invalid hex string');
+      }
+      return cleaned.match(/.{1,2}/g).map(b => parseInt(b, 16));
+    }
+
+    async function sendCommand(hex, target = 'command') {
+      if (!commandChar && target === 'command') {
+        log('Not connected', 'error');
+        return false;
+      }
+      if (!dataChar && target === 'data') {
+        log('Data char not available', 'error');
+        return false;
+      }
+
+      try {
+        const bytes = hexToBytes(hex);
+        const char = target === 'command' ? commandChar : dataChar;
+        await char.writeValue(new Uint8Array(bytes));
+        const hexStr = bytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
+        log(`Sent to ${target.toUpperCase()}: ${hexStr}`, 'info');
+        return true;
+      } catch (e) {
+        log(`Send failed: ${e.message}`, 'error');
+        return false;
+      }
+    }
+
+    function sendManual() {
+      const hex = document.getElementById('hexInput').value.trim();
+      if (!hex) {
+        log('Enter hex command', 'error');
+        return;
+      }
+      sendCommand(hex);
+    }
+
+    function sendRepeatedly() {
+      const hex = document.getElementById('hexInput').value.trim();
+      if (!hex) {
+        log('Enter hex command', 'error');
+        return;
+      }
+      if (repeatInterval) {
+        stopRepeating();
+        return;
+      }
+
+      document.getElementById('stopBtn').disabled = false;
+      log(`Starting repeated send: ${hex} every 100ms`, 'info');
+      
+      sendCommand(hex);
+      repeatInterval = setInterval(() => {
+        sendCommand(hex);
+      }, 100);
+    }
+
+    function stopRepeating() {
+      if (repeatInterval) {
+        clearInterval(repeatInterval);
+        repeatInterval = null;
+        document.getElementById('stopBtn').disabled = true;
+        log('Stopped repeating', 'info');
+      }
+    }
+
+    function startAutoTest() {
+      if (autoTestInterval) {
+        stopAutoTest();
+        return;
+      }
+
+      const pattern = document.getElementById('patternSelect').value;
+      document.getElementById('autoTestBtn').disabled = true;
+      document.getElementById('stopAutoBtn').disabled = false;
+      document.getElementById('markBtn').disabled = false;
+      document.getElementById('autoTestSection').classList.add('active');
+
+      let testCases = generateTestCases(pattern);
+      let index = 0;
+
+      log(`Starting auto test: ${pattern} (${testCases.length} tests)`, 'info');
+      updateAutoTestStatus(`Testing ${index + 1}/${testCases.length}: ${testCases[index]}`);
+
+      autoTestState = { pattern, testCases, index };
+
+      autoTestInterval = setInterval(() => {
+        if (index >= testCases.length) {
+          stopAutoTest();
+          log('Auto test complete!', 'success');
+          return;
+        }
+
+        const hex = testCases[index];
+        sendCommand(hex);
+        updateAutoTestStatus(`Testing ${index + 1}/${testCases.length}: ${hex}`);
+        
+        index++;
+        autoTestState.index = index;
+      }, 2000); // 2 second delay between tests
+    }
+
+    function stopAutoTest() {
+      if (autoTestInterval) {
+        clearInterval(autoTestInterval);
+        autoTestInterval = null;
+        autoTestState = null;
+        document.getElementById('autoTestBtn').disabled = false;
+        document.getElementById('stopAutoBtn').disabled = true;
+        document.getElementById('markBtn').disabled = true;
+        document.getElementById('autoTestSection').classList.remove('active');
+        updateAutoTestStatus('');
+        log('Auto test stopped', 'info');
+      }
+    }
+
+    function generateTestCases(pattern) {
+      const cases = [];
+      
+      switch(pattern) {
+        case 'single':
+          for (let i = 0; i <= 0xFF; i++) {
+            cases.push(i.toString(16).padStart(2, '0'));
+          }
+          break;
+        case 'double':
+          for (let i = 0; i <= 0xFF; i++) {
+            for (let j = 0; j <= 0xFF; j++) {
+              cases.push(i.toString(16).padStart(2, '0') + j.toString(16).padStart(2, '0'));
+            }
+          }
+          break;
+        case 'triple':
+          // 01ff + byte
+          for (let i = 0; i <= 0xFF; i++) {
+            cases.push('01ff' + i.toString(16).padStart(2, '0'));
+          }
+          break;
+        case 'quad':
+          // 01ff + byte + byte
+          for (let i = 0; i <= 0xFF; i++) {
+            for (let j = 0; j <= 0xFF; j++) {
+              cases.push('01ff' + i.toString(16).padStart(2, '0') + j.toString(16).padStart(2, '0'));
+            }
+          }
+          break;
+        case 'known':
+          // Variants of 01ff
+          cases.push('01ff', 'ff01', '00ff', '01fe', '02ff', '01fd', '03ff', '10ff', 'ff10');
+          // 01ff + common values
+          for (let i = 0; i <= 0x1F; i++) {
+            cases.push('01ff' + i.toString(16).padStart(2, '0'));
+          }
+          break;
+      }
+      
+      return cases;
+    }
+
+    function updateAutoTestStatus(text) {
+      document.getElementById('autoTestStatus').textContent = text;
+    }
+
+    function markWorking() {
+      if (!autoTestState) return;
+      
+      const currentIndex = autoTestState.index - 1;
+      if (currentIndex < 0 || currentIndex >= autoTestState.testCases.length) return;
+      
+      const hex = autoTestState.testCases[currentIndex];
+      workingCommands.add(hex);
+      
+      const resultEl = document.createElement('div');
+      resultEl.className = 'test-result working';
+      resultEl.textContent = `✓ WORKING: ${hex}`;
+      document.getElementById('testResults').appendChild(resultEl);
+      
+      log(`Marked as working: ${hex}`, 'success');
+    }
+
+    function renderPresets() {
+      const html = PRESETS.map(p => {
+        const isWorking = workingCommands.has(p.hex);
+        return `<button class="preset-btn ${isWorking ? 'active' : ''}" onclick="sendCommand('${p.hex}')" title="${p.desc}">
+          ${p.name}${isWorking ? ' ✓' : ''}
+        </button>`;
+      }).join('');
+      document.getElementById('presets').innerHTML = html;
+    }
+
+    async function connectDevice() {
+      clearLog();
+      log('Scanning for Lumenate Nova...');
+
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'Lumenate' }],
+          optionalServices: [CONTROL_SERVICE]
+        });
+
+        log('Found: ' + device.name, 'success');
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+
+        log('Connecting...');
+        server = await device.gatt.connect();
+        log('Connected!', 'success');
+
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+
+        const controlService = await server.getPrimaryService(CONTROL_SERVICE);
+        log('Control Service found!', 'success');
+
+        const chars = await controlService.getCharacteristics();
+        for (const char of chars) {
+          const uuid = char.uuid.toLowerCase().replace(/-/g, '');
+          if (uuid === COMMAND_CHAR.toLowerCase().replace(/-/g, '')) {
+            commandChar = char;
+            log('Command char ready', 'success');
+          }
+          if (uuid === DATA_CHAR.toLowerCase().replace(/-/g, '')) {
+            dataChar = char;
+            log('Data char ready', 'success');
+          }
+        }
+
+        if (!commandChar) {
+          log('Command char not found!', 'error');
+        }
+
+        log('--- Ready for discovery ---', 'success');
+        renderPresets();
+
+      } catch (err) {
+        log('Error: ' + err.message, 'error');
+        console.error(err);
+      }
+    }
+
+    function disconnectDevice() {
+      stopRepeating();
+      stopAutoTest();
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+      }
+    }
+
+    function onDisconnected() {
+      log('\nDisconnected', 'error');
+      document.getElementById('connectBtn').disabled = false;
+      document.getElementById('disconnectBtn').disabled = true;
+      device = null;
+      server = null;
+      commandChar = null;
+      dataChar = null;
+      stopRepeating();
+      stopAutoTest();
+    }
+
+    renderPresets();
+  </script>
+</body>
+</html>

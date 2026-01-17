@@ -162,8 +162,24 @@ The interface provides four preset states covering the most common use cases.
 ## Files
 
 - `ble-web.html` - Main web interface for browser control
+- `command-discovery.html` - Command discovery tool for testing different command patterns
 - `ble-connect.cjs` - Node.js connection script (uses @abandonware/noble)
 - `ble_connect.py` - Python connection script (uses bleak)
+
+## Command Discovery Tool
+
+The `command-discovery.html` tool allows systematic testing of command patterns to discover new device behaviors:
+
+- **Manual Testing**: Send custom hex commands and test repeated sending
+- **Quick Presets**: Test common command variants
+- **Automated Discovery**: Systematically test patterns:
+  - Single byte (00-FF)
+  - Two bytes (all combinations)
+  - Three bytes (01ff + byte)
+  - Four bytes (01ff + two bytes)
+  - Known pattern variants
+
+Use the "Mark as Working" button when you observe a device response during automated testing. Results are logged for review.
 
 ## Browser Compatibility
 
