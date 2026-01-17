@@ -162,20 +162,7 @@
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Try multiple approaches - maybe frequency needs to go to DATA_CHAR
-      // Approach 1: Just frequency byte to DATA_CHAR (01ff already sent to COMMAND_CHAR)
-      if (window.dataChar) {
-        try {
-          await window.dataChar.writeValue(new Uint8Array([hz]));
-          log(`Activated: ${state?.name || hz + ' Hz'} (freq ${hz} to DATA_CHAR)`, 'success');
-          renderPresets();
-          return;
-        } catch (e) {
-          log(`DATA_CHAR freq-only failed: ${e.message}`, 'error');
-        }
-      }
-      
-      // Approach 2: 01ff + frequency to DATA_CHAR
+      // Send 01ff + frequency to DATA_CHAR (device receives freq bytes but doesn't change without 01ff)
       if (window.dataChar) {
         try {
           const bytes = [0x01, 0xFF, hz];
@@ -184,11 +171,11 @@
           renderPresets();
           return;
         } catch (e) {
-          log(`DATA_CHAR 01ff+freq failed: ${e.message}`, 'error');
+          log(`DATA_CHAR failed: ${e.message}`, 'error');
         }
       }
       
-      // Approach 3: 01ff + frequency to COMMAND_CHAR (original)
+      // Fallback: 01ff + frequency to COMMAND_CHAR
       if (commandChar) {
         try {
           const bytes = [0x01, 0xFF, hz];
