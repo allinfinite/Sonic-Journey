@@ -121,6 +121,41 @@
       color: #666;
       margin-left: auto;
     }
+    
+    /* Debug panel */
+    .debug-panel {
+      background: #252547;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      display: none;
+    }
+    .debug-panel.visible { display: block; }
+    .debug-panel h3 {
+      color: #00d4ff;
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      font-weight: 600;
+    }
+    .debug-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .debug-buttons button {
+      font-size: 13px;
+      padding: 10px 16px;
+      min-width: auto;
+    }
+    .debug-toggle {
+      background: #444;
+      color: #aaa;
+      font-size: 12px;
+      padding: 8px 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
@@ -145,6 +180,19 @@
     <div id="presets"></div>
     <div style="margin-top: 16px; text-align: center;">
       <button onclick="stopFlicker()" class="danger" style="min-width: 200px;">Turn Off</button>
+    </div>
+  </div>
+  
+  <button class="debug-toggle" onclick="toggleDebug()">🔧 Debug Tools</button>
+  <div id="debugPanel" class="debug-panel">
+    <h3>Streaming Protocol Tests</h3>
+    <div class="debug-buttons">
+      <button onclick="testCapturedSequence()" class="secondary">Test Captured Bytes</button>
+      <button onclick="testHybrid()" class="secondary">Test Hybrid (01ff+Stream)</button>
+      <button onclick="testModes()" class="secondary">Test Modes (0-5)</button>
+      <button onclick="testStreamingFlash()" class="secondary">Test Streaming Flash</button>
+      <button onclick="sendStreamingTest()" class="secondary">Send Single Stream</button>
+      <button onclick="startJourneyMode()" class="secondary">Start Journey Mode</button>
     </div>
   </div>
 
@@ -571,13 +619,22 @@
       log('Sent 01ff', 'info');
     };
     
+    // Toggle debug panel
+    function toggleDebug() {
+      const panel = document.getElementById('debugPanel');
+      panel.classList.toggle('visible');
+    }
+    
     // Test: start journey mode (0A command)
-    window.startJourney = async () => {
+    window.startJourneyMode = async () => {
       if (!commandChar) { log('Not connected', 'error'); return; }
       await commandChar.writeValue(new Uint8Array([0x0A]));
       journeyMode = true;
       log('Sent 0A (journey mode)', 'success');
     };
+    
+    // Also expose as window.startJourney for console
+    window.startJourney = window.startJourneyMode;
     
     // Test: send streaming command
     window.sendStreaming = async (intensity = 32768, mode = 2, ts = 0) => {
@@ -589,8 +646,11 @@
     };
     
     // Test: flash with streaming protocol
-    window.testStreamingFlash = async (hz = 10, duration = 5000) => {
+    window.testStreamingFlash = async () => {
       if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
+      
+      const hz = 10;
+      const duration = 5000;
       
       // Start journey mode
       await commandChar.writeValue(new Uint8Array([0x0A]));
@@ -621,6 +681,20 @@
         await commandChar.writeValue(new Uint8Array([0x02, 0xFF]));
         log('Streaming test complete', 'success');
       }, duration);
+    };
+    
+    // Test: send single streaming command
+    window.sendStreamingTest = async () => {
+      if (!dataChar) { log('Data char not available', 'error'); return; }
+      if (!journeyMode) {
+        log('Starting journey mode first...', 'info');
+        await startJourneyMode();
+        await new Promise(r => setTimeout(r, 200));
+      }
+      const cmd = buildStreamingCommand(32768, 0x0002, 0);
+      await dataChar.writeValue(cmd);
+      const hex = Array.from(cmd).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      log(`Sent: ${hex}`, 'success');
     };
     
     // Test: send EXACT captured bytes from official app
@@ -664,7 +738,7 @@
     };
     
     // Test: maybe streaming controls something else - try 01ff + streaming together
-    window.testHybrid = async (hz = 10) => {
+    window.testHybrid = async () => {
       if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
       
       log('Testing hybrid: 01ff + streaming...', 'info');
@@ -672,6 +746,7 @@
       // Start journey mode
       await commandChar.writeValue(new Uint8Array([0x0A]));
       log('Journey mode started', 'info');
+      journeyMode = true;
       
       await new Promise(r => setTimeout(r, 100));
       
