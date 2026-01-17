@@ -197,6 +197,7 @@ The interface provides four preset states covering the most common use cases.
 
 - `ble-web.html` - Main web interface for browser control
 - `command-discovery.html` - Command discovery tool for testing different command patterns
+- `device-simulator.js` - BLE peripheral simulator to capture commands from official app
 - `ble-connect.cjs` - Node.js connection script (uses @abandonware/noble)
 - `ble_connect.py` - Python connection script (uses bleak)
 
@@ -214,6 +215,27 @@ The `command-discovery.html` tool allows systematic testing of command patterns 
   - Known pattern variants
 
 Use the "Mark as Working" button when you observe a device response during automated testing. Results are logged for review.
+
+## Device Simulator
+
+The `device-simulator.js` tool simulates the Nova device to capture commands from the official Lumenate app:
+
+**Purpose**: Reverse-engineer what the official app sends during journeys/sessions
+
+**How it works**:
+1. Simulator advertises as "Lumenate Nova" with the same UUIDs
+2. Official app connects to simulator (thinking it's the real device)
+3. All commands sent by the app are logged to console
+4. Analyze the command patterns to discover hidden functionality
+
+**Usage**:
+```bash
+npm install @abandonware/bleno
+node nova/device-simulator.js
+# Then connect with official app and start a journey
+```
+
+See `SIMULATOR_README.md` for detailed instructions and troubleshooting.
 
 ## Browser Compatibility
 
