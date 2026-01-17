@@ -149,21 +149,52 @@
       document.getElementById('log').innerHTML = '';
     }
 
-    // Build BLE flicker command. Format may need adjustment for actual Nova protocol.
-    // Plausible: [cmd=0x01, freq_Hz, duration_min, pattern: 0=rhythmic 1=ramp]
-    function buildFlickerCommand(freqHz, durationMin, pattern) {
-      const p = pattern === 'ramp' ? 1 : 0;
-      return [0x01, Math.max(1, Math.min(50, Math.round(freqHz))), Math.max(0, Math.min(60, Math.round(durationMin))), p];
+    // Build BLE flicker command. Trying multiple formats since protocol is unknown.
+    function buildFlickerCommand(freqHz, format = 0) {
+      const hz = Math.max(1, Math.min(50, Math.round(freqHz)));
+      // Try different formats
+      switch(format) {
+        case 0: // [cmd, freq, duration=0, pattern=0]
+          return [0x01, hz, 0, 0];
+        case 1: // [cmd, freq, duration=60min, pattern=0]
+          return [0x01, hz, 60, 0];
+        case 2: // [freq only]
+          return [hz];
+        case 3: // [0x00, freq, 0x00, 0x00]
+          return [0x00, hz, 0x00, 0x00];
+        case 4: // [freq, 0, 0, 0]
+          return [hz, 0, 0, 0];
+        case 5: // [0xFF, freq]
+          return [0xFF, hz];
+        default:
+          return [0x01, hz, 60, 0];
+      }
     }
 
-    function activateState(hz) {
+    async function activateState(hz) {
       if (!commandChar) { log('Not connected', 'error'); return; }
       activeState = hz;
-      const bytes = buildFlickerCommand(hz, 0, 'rhythmic'); // 0 = infinite duration
-      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
-      sendCommand(hex);
       const state = STATES.find(s => s.hz === hz);
-      log(`Activated: ${state?.name || hz + ' Hz'}`, 'success');
+      
+      // Use format 1: [0x01, freq, 60min, 0] - duration 0 might mean "stop"
+      const bytes = buildFlickerCommand(hz, 1);
+      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      try {
+        await commandChar.writeValue(new Uint8Array(bytes));
+        log(`Activated: ${state?.name || hz + ' Hz'} (${hex})`, 'success');
+      } catch (e) {
+        log(`Failed: ${e.message}`, 'error');
+        // Try DATA_CHAR as fallback
+        if (window.dataChar) {
+          try {
+            await window.dataChar.writeValue(new Uint8Array(bytes));
+            log(`Sent to DATA_CHAR instead: ${hex}`, 'info');
+          } catch (e2) {
+            log(`DATA_CHAR also failed: ${e2.message}`, 'error');
+          }
+        }
+      }
       renderPresets();
     }
 
@@ -228,6 +259,7 @@
 
           const norm = (u) => (String(u || '').toLowerCase().replace(/-/g, ''));
           let fallbackWrite = null;
+          let dataChar = null;
 
           const chars = await controlService.getCharacteristics();
           for (const char of chars) {
@@ -244,6 +276,11 @@
             if (norm(uuid) === norm(COMMAND_CHAR)) {
               commandChar = char;
               log('  ^ Command char ready', 'success');
+            }
+            // Also track DATA_CHAR as alternative
+            if (norm(uuid) === norm(DATA_CHAR)) {
+              dataChar = char;
+              log('  ^ Data char found (can also write)', 'info');
             }
             // Fallback: first writable char if COMMAND_CHAR not found
             if (!fallbackWrite && (char.properties.write || char.properties.writeWithoutResponse)) {
@@ -282,6 +319,9 @@
             commandChar = fallbackWrite;
             log('  ^ Using write char as command (COMMAND_CHAR not matched)', 'info');
           }
+          // Store dataChar globally for testing
+          window.dataChar = dataChar;
+          window.commandChar = commandChar;
           renderPresets();
         } catch (e) {
           log('Control service error: ' + e.message, 'error');
@@ -322,6 +362,17 @@
       const bytes = hexString.match(/.{1,2}/g).map(b => parseInt(b, 16));
       await commandChar.writeValue(new Uint8Array(bytes));
       log('Sent: ' + hexString, 'success');
+    };
+    
+    // Try DATA_CHAR instead
+    window.tryDataChar = async (hz) => {
+      if (!window.dataChar) {
+        log('Data char not available', 'error');
+        return;
+      }
+      const bytes = buildFlickerCommand(hz, 1);
+      await window.dataChar.writeValue(new Uint8Array(bytes));
+      log(`Sent to DATA_CHAR: ${bytes.map(b => b.toString(16).padStart(2, '0')).join('')}`, 'success');
     };
 
     renderPresets();
