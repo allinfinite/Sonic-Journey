@@ -622,6 +622,103 @@
         log('Streaming test complete', 'success');
       }, duration);
     };
+    
+    // Test: send EXACT captured bytes from official app
+    window.testCapturedSequence = async () => {
+      if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
+      
+      log('Testing exact captured sequence...', 'info');
+      
+      // 1. Send 0A to start journey mode (handle 0x0039)
+      await commandChar.writeValue(new Uint8Array([0x0A]));
+      log('Sent 0A to COMMAND_CHAR', 'success');
+      
+      // Wait a moment for device to respond
+      await new Promise(r => setTimeout(r, 200));
+      
+      // 2. Send initial zero command
+      const zero = new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      await dataChar.writeValue(zero);
+      log('Sent zeros to DATA_CHAR', 'info');
+      
+      // 3. Send first captured command: 0032 0200 CF31 0000 0000 0000
+      // In bytes: 00 32 02 00 CF 31 00 00 00 00 00 00
+      const cmd1 = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      await dataChar.writeValue(cmd1);
+      log('Sent captured cmd1: 00320200cf31...', 'success');
+      
+      await new Promise(r => setTimeout(r, 150));
+      
+      // 4. Send more captured commands
+      const cmd2 = new Uint8Array([0xD1, 0x2A, 0x02, 0x00, 0x73, 0x35, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      await dataChar.writeValue(cmd2);
+      log('Sent captured cmd2: d12a02007335...', 'success');
+      
+      await new Promise(r => setTimeout(r, 150));
+      
+      const cmd3 = new Uint8Array([0x52, 0x24, 0x02, 0x00, 0xBF, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+      await dataChar.writeValue(cmd3);
+      log('Sent captured cmd3: 52240200bf38...', 'success');
+      
+      log('Captured sequence sent - any light?', 'info');
+    };
+    
+    // Test: maybe streaming controls something else - try 01ff + streaming together
+    window.testHybrid = async (hz = 10) => {
+      if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
+      
+      log('Testing hybrid: 01ff + streaming...', 'info');
+      
+      // Start journey mode
+      await commandChar.writeValue(new Uint8Array([0x0A]));
+      log('Journey mode started', 'info');
+      
+      await new Promise(r => setTimeout(r, 100));
+      
+      // Turn on light with 01ff
+      await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
+      log('Light on (01ff)', 'success');
+      
+      // Now stream intensity values
+      let ts = 0;
+      const streamRateMs = 100;
+      let count = 0;
+      
+      const interval = setInterval(async () => {
+        // Oscillate between high and low intensity
+        const intensity = (count % 2 === 0) ? 65535 : 0;
+        count++;
+        ts += streamRateMs;
+        
+        try {
+          await dataChar.writeValue(buildStreamingCommand(intensity, 0x0002, ts));
+          log(`Stream: intensity=${intensity}`, 'data');
+        } catch (e) {}
+        
+        if (count > 20) {
+          clearInterval(interval);
+          log('Hybrid test complete', 'success');
+        }
+      }, streamRateMs);
+    };
+    
+    // Test: try different mode values
+    window.testModes = async () => {
+      if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
+      
+      await commandChar.writeValue(new Uint8Array([0x0A]));
+      log('Journey mode started', 'info');
+      await new Promise(r => setTimeout(r, 100));
+      
+      // Try different mode values
+      for (let mode = 0; mode <= 5; mode++) {
+        const cmd = buildStreamingCommand(32768, mode, 0);
+        await dataChar.writeValue(cmd);
+        log(`Mode ${mode}: intensity=32768`, 'info');
+        await new Promise(r => setTimeout(r, 500));
+      }
+      log('Mode test complete', 'success');
+    };
 
     renderPresets();
   </script>
