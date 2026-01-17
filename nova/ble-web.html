@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lumenate Nova BLE Connection</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { color: #00d4ff; }
+    button {
+      background: #00d4ff;
+      color: #1a1a2e;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 8px;
+      margin: 10px 5px;
+    }
+    button:hover { background: #00a8cc; }
+    button:disabled { background: #555; color: #888; cursor: not-allowed; }
+    #log {
+      background: #0d0d1a;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .service { color: #ff6b6b; font-weight: bold; }
+    .char { color: #4ecdc4; margin-left: 20px; }
+    .props { color: #ffe66d; margin-left: 40px; }
+    .success { color: #51cf66; }
+    .error { color: #ff6b6b; }
+    .data { color: #ffd93d; }
+  </style>
+</head>
+<body>
+  <h1>🔮 Lumenate Nova BLE Connection</h1>
+  <p>Connect to your Lumenate Nova device using Web Bluetooth API</p>
+
+  <div>
+    <button id="connectBtn" onclick="connectDevice()">Connect to Lumenate Nova</button>
+    <button id="disconnectBtn" onclick="disconnectDevice()" disabled>Disconnect</button>
+  </div>
+
+  <div id="log">Ready. Click "Connect" to scan for device...</div>
+
+  <script>
+    let device = null;
+    let server = null;
+
+    function log(msg, className = '') {
+      const logEl = document.getElementById('log');
+      const line = document.createElement('div');
+      line.className = className;
+      line.textContent = msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    async function connectDevice() {
+      clearLog();
+      log('Scanning for Lumenate Nova...');
+
+      try {
+        // Request device - accept any device since we filter by name
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'Lumenate' }],
+          optionalServices: [] // Will discover all services
+        });
+
+        log(`✓ Found: ${device.name}`, 'success');
+        log(`  ID: ${device.id}`);
+
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+
+        log('\nConnecting to GATT server...');
+        server = await device.gatt.connect();
+        log('✓ Connected!', 'success');
+
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+
+        // Discover services
+        log('\nDiscovering services...');
+        const services = await server.getPrimaryServices();
+        log(`\nFound ${services.length} services:\n`);
+
+        for (const service of services) {
+          log(`Service: ${service.uuid}`, 'service');
+
+          try {
+            const characteristics = await service.getCharacteristics();
+
+            for (const char of characteristics) {
+              log(`  └─ ${char.uuid}`, 'char');
+
+              const props = [];
+              if (char.properties.read) props.push('read');
+              if (char.properties.write) props.push('write');
+              if (char.properties.writeWithoutResponse) props.push('writeWithoutResponse');
+              if (char.properties.notify) props.push('notify');
+              if (char.properties.indicate) props.push('indicate');
+
+              log(`     Properties: ${props.join(', ')}`, 'props');
+
+              // Try to read if readable
+              if (char.properties.read) {
+                try {
+                  const value = await char.readValue();
+                  const bytes = new Uint8Array(value.buffer);
+                  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                  log(`     Value: ${hex}`, 'data');
+                } catch (e) {
+                  log(`     Read error: ${e.message}`, 'error');
+                }
+              }
+
+              // Subscribe to notifications
+              if (char.properties.notify) {
+                try {
+                  await char.startNotifications();
+                  char.addEventListener('characteristicvaluechanged', (event) => {
+                    const value = event.target.value;
+                    const bytes = new Uint8Array(value.buffer);
+                    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                    log(`[NOTIFY ${char.uuid.slice(0,8)}] ${hex}`, 'data');
+                  });
+                  log(`     ✓ Subscribed to notifications`, 'success');
+                } catch (e) {
+                  log(`     Notify error: ${e.message}`, 'error');
+                }
+              }
+            }
+          } catch (e) {
+            log(`  Error getting characteristics: ${e.message}`, 'error');
+          }
+
+          log('');
+        }
+
+        log('\n========================================');
+        log('Device ready! Listening for notifications...', 'success');
+        log('========================================\n');
+
+      } catch (err) {
+        log(`Error: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    function disconnectDevice() {
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+      }
+    }
+
+    function onDisconnected() {
+      log('\nDevice disconnected.', 'error');
+      document.getElementById('connectBtn').disabled = false;
+      document.getElementById('disconnectBtn').disabled = true;
+      device = null;
+      server = null;
+    }
+  </script>
+</body>
+</html>

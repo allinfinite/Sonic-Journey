@@ -6,21 +6,31 @@ import type { JourneyConfig } from '../types/journey';
 
 // Determine API URL: use env var, or detect from current origin, or fallback to localhost
 function getApiUrl(): string {
-  // Use explicit env var if set
+  // Use explicit env var if set (highest priority)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   
-  // In production, use same origin (API should be on same domain)
+  // Allow runtime override via window.__API_URL__ (useful for deployments)
+  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
+    return (window as any).__API_URL__;
+  }
+  
+  // In production (Vercel), use same origin (API routes are on same domain)
   if (import.meta.env.PROD) {
     return window.location.origin;
   }
   
-  // Development fallback
+  // Development fallback - try localhost server first
   return 'http://localhost:3001';
 }
 
 const API_URL = getApiUrl();
+
+// Log API URL in development for debugging
+if (import.meta.env.DEV) {
+  console.log('API URL:', API_URL);
+}
 
 export interface GenerateJourneyRequest {
   prompt: string;
@@ -102,6 +112,16 @@ export async function generateJourney(
         // If response is not JSON, use status text
         errorMessage = response.statusText || errorMessage;
       }
+      
+      // Provide helpful message for 404
+      if (response.status === 404) {
+        throw new Error(
+          `API endpoint not found (404). The server may not be deployed or accessible at ${API_URL}. ` +
+          `Please ensure the Node.js server is running and accessible. ` +
+          `If the server is at a different URL, set VITE_API_URL environment variable during build.`
+        );
+      }
+      
       throw new Error(errorMessage);
     }
 

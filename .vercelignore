@@ -1,0 +1,7 @@
+# Exclude from Vercel deployment
+dist-server/
+server/
+uploads/
+output/
+*.md
+!README.md
