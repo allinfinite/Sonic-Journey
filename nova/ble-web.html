@@ -191,6 +191,7 @@
     </p>
     <div class="debug-buttons">
       <button onclick="testSimpleStreaming()" class="secondary" style="background: #00d4ff; font-weight: 700;">⚡ Simple Streaming Test</button>
+      <button onclick="testWaitForStatus()" class="secondary" style="background: #51cf66;">⏳ Wait For Status</button>
       <button onclick="test01ffThenStreaming()" class="secondary" style="background: #ff6b6b;">🔴 01ff Then Streaming</button>
       <button onclick="testFullStreaming()" class="secondary" style="background: #00d4ff;">🚀 Full Streaming Test</button>
       <button onclick="fullInitSequence()" class="secondary" style="background: #6c5ce7; font-weight: 700;">🔬 Full Init Sequence</button>
@@ -1183,6 +1184,126 @@
         
       } catch (e) {
         log(`Full streaming test error: ${e.message}`, 'error');
+        console.error(e);
+      }
+    };
+    
+    // Test: Follow exact capture sequence - 0A, then enable DATA_CHAR notifications, then stream
+    window.testWaitForStatus = async () => {
+      if (!commandChar || !dataChar || !statusChar) { 
+        log('Not fully connected (need statusChar)', 'error'); 
+        return; 
+      }
+      
+      log('=== TEST: EXACT CAPTURE SEQUENCE ===', 'info');
+      log('Following: 0A → Enable DATA_CHAR notifications → Wait for status → Stream', 'info');
+      
+      // Track status notifications
+      let statusReceived = false;
+      let statusCount = 0;
+      const statusListener = (e) => {
+        const bytes = new Uint8Array(e.target.value.buffer);
+        const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        statusCount++;
+        log(`[STATUS ${statusCount}]: ${hex}`, 'data');
+        statusReceived = true;
+      };
+      
+      // Listen for status notifications
+      try {
+        await statusChar.startNotifications();
+        statusChar.addEventListener('characteristicvaluechanged', statusListener);
+        log('Listening for status notifications...', 'info');
+      } catch (e) {
+        log(`Failed to start status notifications: ${e.message}`, 'error');
+        return;
+      }
+      
+      try {
+        // Step 1: Start journey mode (0A to COMMAND_CHAR)
+        log('Step 1: Sending 0A to COMMAND_CHAR...', 'info');
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        journeyMode = true;
+        log('Journey mode started (0A sent)', 'success');
+        await new Promise(r => setTimeout(r, 100));
+        
+        // Step 2: Enable DATA_CHAR notifications (0x0037 = 0100) - THIS IS AFTER 0A in capture!
+        log('Step 2: Enabling DATA_CHAR notifications (0x0037 = 0100)...', 'info');
+        try {
+          const dataCccd = await dataChar.getDescriptor('2902');
+          await dataCccd.writeValue(new Uint8Array([0x01, 0x00]));
+          log('DATA_CHAR notifications enabled', 'success');
+        } catch (e) {
+          log(`Failed to enable DATA_CHAR notifications: ${e.message}`, 'error');
+        }
+        await new Promise(r => setTimeout(r, 100));
+        
+        // Step 3: Wait for status notifications (device should start sending them)
+        log('Step 3: Waiting for status notifications (up to 2 seconds)...', 'info');
+        let waited = 0;
+        while (!statusReceived && waited < 2000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+          if (waited % 500 === 0) {
+            log(`  Still waiting... (${waited}ms)`, 'info');
+          }
+        }
+        
+        if (statusReceived) {
+          log(`✓ Received status notification after ${waited}ms`, 'success');
+        } else {
+          log('⚠ No status notification received, continuing anyway...', 'info');
+        }
+        
+        await new Promise(r => setTimeout(r, 200));
+        
+        // Step 4: Send initial zero command (CRITICAL: must be first streaming command)
+        log('Step 4: Sending initial zero command...', 'info');
+        writeStreamingCommand(buildStreamingCommand(0, 0x0002, 0), true);
+        await new Promise(r => setTimeout(r, 50));
+        
+        // Step 5: Send captured command
+        log('Step 5: Sending captured command (00320200cf31)...', 'info');
+        const capturedCmd = new Uint8Array([0x00, 0x32, 0x02, 0x00, 0xCF, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        writeStreamingCommand(capturedCmd, true);
+        await new Promise(r => setTimeout(r, 67));
+        
+        // Step 6: Stream pattern
+        log('Step 6: Streaming pattern for 5 seconds...', 'info');
+        const streamRateMs = 67;
+        const duration = 5000;
+        let ts = 0;
+        let count = 0;
+        const targetHz = 10;
+        let phase = 0;
+        const phaseIncrement = (targetHz * 2 * Math.PI) / (1000 / streamRateMs);
+        
+        const interval = setInterval(() => {
+          const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
+          phase += phaseIncrement;
+          ts += streamRateMs;
+          count++;
+          
+          try {
+            writeStreamingCommand(buildStreamingCommand(intensity, 0x0002, ts), count % 15 === 0);
+          } catch (e) {
+            log(`Stream error: ${e.message}`, 'error');
+            clearInterval(interval);
+          }
+        }, streamRateMs);
+        
+        setTimeout(() => {
+          clearInterval(interval);
+          statusChar.removeEventListener('characteristicvaluechanged', statusListener);
+          writeStreamingCommand(buildStreamingCommand(0, 0x0002, ts));
+          log(`=== TEST COMPLETE ===`, 'success');
+          log(`Sent ${count} streaming commands, received ${statusCount} status notifications`, 'info');
+          log('Did you see any lights?', 'info');
+        }, duration);
+        
+      } catch (e) {
+        statusChar.removeEventListener('characteristicvaluechanged', statusListener);
+        log(`Test error: ${e.message}`, 'error');
         console.error(e);
       }
     };
