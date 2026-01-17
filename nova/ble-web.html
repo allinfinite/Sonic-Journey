@@ -31,6 +31,7 @@
     }
     button:active { background: #00a8cc; transform: scale(0.98); }
     button:disabled { background: #444; color: #666; cursor: not-allowed; }
+    button, .preset, .pattern-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     button.danger { background: #ff6b6b; }
     #log {
       background: #0d0d1a;
@@ -366,6 +367,9 @@
           const controlService = await server.getPrimaryService(CONTROL_SERVICE);
           log('\nControl Service found!', 'service');
 
+          const norm = (u) => (String(u || '').toLowerCase().replace(/-/g, ''));
+          let fallbackWrite = null;
+
           const chars = await controlService.getCharacteristics();
           for (const char of chars) {
             const uuid = char.uuid;
@@ -377,11 +381,14 @@
 
             log(`  ${uuid.slice(0,8)}... (${props.join(', ')})`, 'char');
 
-            // Store command characteristic
-            if (uuid === COMMAND_CHAR) {
+            // Match command char (UUID can vary in format/casing)
+            if (norm(uuid) === norm(COMMAND_CHAR)) {
               commandChar = char;
               log('  ^ Command char ready', 'success');
-              renderPresets();
+            }
+            // Fallback: first writable char if COMMAND_CHAR not found
+            if (!fallbackWrite && (char.properties.write || char.properties.writeWithoutResponse)) {
+              fallbackWrite = char;
             }
 
             // Subscribe to notifications
@@ -411,6 +418,12 @@
               }
             }
           }
+
+          if (!commandChar && fallbackWrite) {
+            commandChar = fallbackWrite;
+            log('  ^ Using write char as command (COMMAND_CHAR not matched)', 'info');
+          }
+          renderPresets();
         } catch (e) {
           log('Control service error: ' + e.message, 'error');
         }

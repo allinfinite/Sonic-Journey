@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/nova", "destination": "/nova/ble-web.html" }
+  ],
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 30

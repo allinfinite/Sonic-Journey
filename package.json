@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:server": "tsx watch server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "prebuild": "mkdir -p public/nova && cp nova/ble-web.html public/nova/",
     "build": "tsc -b && vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "start:server": "node dist-server/index.js",
