@@ -162,45 +162,25 @@
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Try multiple approaches:
-      // 1. Just send frequency byte (after 01ff was sent at init)
-      // 2. Send 01ff + frequency together
-      // 3. Try DATA_CHAR
-      // 4. Try reversed: ff01 + frequency
+      // Send 01ff + frequency together each time (01ff turns on light, frequency sets the rate)
+      const bytes = [0x01, 0xFF, hz];
+      const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
       
-      // Approach 1: Just frequency byte (assuming 01ff was sent at init)
       try {
-        await commandChar.writeValue(new Uint8Array([hz]));
-        log(`Activated: ${state?.name || hz + ' Hz'} (frequency: 0x${hz.toString(16)})`, 'success');
-        renderPresets();
-        return;
-      } catch (e) {
-        log(`Frequency-only failed: ${e.message}`, 'error');
-      }
-      
-      // Approach 2: 01ff + frequency together
-      try {
-        const bytes = [0x01, 0xFF, hz];
         await commandChar.writeValue(new Uint8Array(bytes));
-        log(`Activated: ${state?.name || hz + ' Hz'} (01ff${hz.toString(16).padStart(2, '0')})`, 'success');
-        renderPresets();
-        return;
+        log(`Activated: ${state?.name || hz + ' Hz'} (${hex})`, 'success');
       } catch (e) {
-        log(`01ff+freq failed: ${e.message}`, 'error');
-      }
-      
-      // Approach 3: Try DATA_CHAR
-      if (window.dataChar) {
-        try {
-          await window.dataChar.writeValue(new Uint8Array([hz]));
-          log(`Activated: ${state?.name || hz + ' Hz'} (to DATA_CHAR: 0x${hz.toString(16)})`, 'success');
-          renderPresets();
-          return;
-        } catch (e) {
-          log(`DATA_CHAR failed: ${e.message}`, 'error');
+        log(`Failed: ${e.message}`, 'error');
+        // Fallback: try DATA_CHAR
+        if (window.dataChar) {
+          try {
+            await window.dataChar.writeValue(new Uint8Array(bytes));
+            log(`Sent to DATA_CHAR: ${hex}`, 'info');
+          } catch (e2) {
+            log(`DATA_CHAR also failed: ${e2.message}`, 'error');
+          }
         }
       }
-      
       renderPresets();
     }
 
