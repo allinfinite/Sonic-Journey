@@ -35,19 +35,20 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
 
 ### Command Protocols
 
-The Nova device supports **two protocols**:
+**⚠️ IMPORTANT**: Only the Simple protocol works. The Streaming protocol does not control lights on this device.
 
-#### Protocol 1: Simple (01ff) - Basic Control
+#### Protocol 1: Simple (01ff) - ✅ WORKING
 
 | Command | Effect | Notes |
 |---------|--------|-------|
 | `01fa`-`01ff` | Turn on light | All 6 commands are functionally identical |
 | `02ff` | Turn off light | Stops all light output |
-| `0A` | Start journey mode | Enables streaming protocol |
 
 **Usage**: Send `01ff` repeatedly at intervals to create flicker effect.
 
-#### Protocol 2: Streaming (Official App Protocol) - NEW!
+**This is the ONLY working method** - all other commands and protocols do not produce visible light output.
+
+#### Protocol 2: Streaming (Official App Protocol) - ❌ NOT WORKING
 
 **Discovered via iOS PacketLogger capture (January 2026)**
 
@@ -66,10 +67,9 @@ Bytes 4-5: Timestamp (milliseconds, little-endian)
 Bytes 6-11: Reserved (zeros)
 ```
 
-**Example**: To create a 10 Hz sine wave flicker:
-- Send commands at 67ms intervals (15 Hz stream rate)
-- Calculate intensity: `(sin(phase) + 1) / 2 * 65535`
-- Increment phase by `10 * 2π / 15` per command
+**⚠️ Testing Results**: Despite capturing the exact protocol from the official app, the streaming protocol **does not produce any visible light output** on this device. All tested variations (exact captured bytes, hybrid 01ff+streaming, different modes) failed to activate lights.
+
+**Conclusion**: The streaming protocol may control internal device state, timing patterns, or firmware features that are not directly visible, or may require additional initialization/setup that was not captured. The device only responds to `01ff` commands for light control.
 
 See `PROTOCOL_ANALYSIS.md` for full capture analysis.
 
@@ -153,12 +153,14 @@ testTrigger();
 
 | Feature | Simple Protocol | Streaming Protocol |
 |---------|-----------------|-------------------|
+| **Status** | ✅ **WORKING** | ❌ **NOT WORKING** |
 | Command target | COMMAND_CHAR | DATA_CHAR |
 | Command size | 2 bytes | 12 bytes |
 | Frequency control | Software timing | Value in command |
-| Brightness control | None (on/off) | Full 16-bit range |
-| Waveform | Square wave only | Any waveform |
+| Brightness control | None (on/off) | Full 16-bit range (theoretical) |
+| Waveform | Square wave only | Any waveform (theoretical) |
 | Setup required | None | Send `0A` first |
+| **Light Output** | ✅ Produces lights | ❌ No visible effect |
 
 ### Simple Protocol Details
 
@@ -168,13 +170,23 @@ The simple protocol sends `01ff` repeatedly to create an on/off flicker:
 - **Cons**: Only square wave, no brightness control
 - **How**: Send `01ff` at `1000ms / frequency` intervals
 
-### Streaming Protocol Details (Reverse-Engineered)
+### Streaming Protocol Details (Reverse-Engineered) - ❌ NOT FUNCTIONAL
 
-The official app uses a streaming protocol for smooth, customizable flicker:
+**⚠️ IMPORTANT**: This protocol was reverse-engineered from the official app but **does not produce visible light output** when tested. The device only responds to `01ff` commands.
+
+The official app uses a streaming protocol that was captured via BLE packet logging:
 
 1. **Initialize**: Send `0A` to COMMAND_CHAR (starts journey mode)
 2. **Stream**: Send 12-byte commands to DATA_CHAR at ~15 Hz
 3. **Feedback**: Receive 6-byte notifications from device
+
+**Testing Results**: All attempts to use this protocol failed:
+- Exact captured byte sequences
+- Hybrid approach (01ff + streaming)
+- Different mode values (0-5)
+- Various intensity patterns
+
+**Conclusion**: The streaming protocol may control internal device state, firmware features, or require additional setup not captured in the BLE trace. For light control, only the Simple protocol works.
 
 **Command Structure** (12 bytes, little-endian):
 ```javascript

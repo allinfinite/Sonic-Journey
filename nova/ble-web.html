@@ -171,9 +171,9 @@
   
   <div class="protocol-selector">
     <span style="color: #00d4ff; font-weight: 600;">Protocol:</span>
-    <label><input type="radio" name="protocol" value="simple" checked> Simple (01ff)</label>
-    <label><input type="radio" name="protocol" value="streaming"> Streaming (NEW)</label>
-    <span class="protocol-info" id="protocolInfo">Basic on/off flickering</span>
+    <label><input type="radio" name="protocol" value="simple" checked> Simple (01ff) ✓</label>
+    <label><input type="radio" name="protocol" value="streaming" disabled> Streaming (Not Working)</label>
+    <span class="protocol-info" id="protocolInfo">Basic on/off flickering - Only working method</span>
   </div>
 
   <div class="section" style="margin-top: 24px;">
@@ -249,9 +249,9 @@
     function updateProtocolInfo() {
       const info = document.getElementById('protocolInfo');
       if (getProtocol() === 'streaming') {
-        info.textContent = 'Official app protocol (12-byte streaming)';
+        info.textContent = '⚠️ Does not work - streaming protocol not functional on this device';
       } else {
-        info.textContent = 'Basic on/off flickering';
+        info.textContent = 'Basic on/off flickering - Only working method';
       }
     }
     
@@ -301,60 +301,11 @@
       
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
-      const protocol = getProtocol();
       
-      if (protocol === 'streaming' && dataChar) {
-        // NEW: Official streaming protocol
-        // Start journey mode if not already
-        if (!journeyMode) {
-          const started = await startJourneyMode();
-          if (!started) {
-            log('Cannot use streaming - falling back to simple', 'info');
-            return activateStateSimple(hz, state);
-          }
-        }
-        
-        // Initialize with zeros (reset)
-        try {
-          await dataChar.writeValue(buildStreamingCommand(0, 0x0002, streamTimestamp));
-        } catch (e) {
-          log(`Streaming init failed: ${e.message}`, 'error');
-          return;
-        }
-        
-        // Stream at ~15 Hz (67ms), calculate intensity based on desired flicker frequency
-        const streamRateMs = 67;
-        let phase = 0;
-        const phaseIncrement = (hz * 2 * Math.PI) / (1000 / streamRateMs);
-        
-        flickerInterval = setInterval(async () => {
-          if (!dataChar) {
-            clearInterval(flickerInterval);
-            flickerInterval = null;
-            return;
-          }
-          
-          // Generate sine wave intensity for smooth flicker
-          // Map sine (-1 to 1) to intensity (0 to 65535)
-          const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
-          phase += phaseIncrement;
-          streamTimestamp += streamRateMs;
-          
-          try {
-            await dataChar.writeValue(buildStreamingCommand(intensity, 0x0002, streamTimestamp));
-          } catch (e) {
-            // Silent fail
-          }
-        }, streamRateMs);
-        
-        log(`Streaming: ${state?.name || hz + ' Hz'} (sine wave at ${hz} Hz)`, 'success');
-        
-      } else {
-        // Simple protocol: 01ff repeatedly
-        return activateStateSimple(hz, state);
-      }
-      
-      renderPresets();
+      // NOTE: Streaming protocol does not work on this device
+      // Only the simple 01ff protocol produces lights
+      // Always use simple protocol
+      return activateStateSimple(hz, state);
     }
     
     // Simple protocol implementation
