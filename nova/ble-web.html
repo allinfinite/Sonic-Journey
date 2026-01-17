@@ -149,26 +149,11 @@
       document.getElementById('log').innerHTML = '';
     }
 
-    // Build BLE flicker command. Trying multiple formats since protocol is unknown.
-    function buildFlickerCommand(freqHz, format = 0) {
+    // Build BLE flicker command. Format: 01ff + frequency
+    function buildFlickerCommand(freqHz) {
       const hz = Math.max(1, Math.min(50, Math.round(freqHz)));
-      // Try different formats
-      switch(format) {
-        case 0: // [cmd, freq, duration=0, pattern=0]
-          return [0x01, hz, 0, 0];
-        case 1: // [cmd, freq, duration=60min, pattern=0]
-          return [0x01, hz, 60, 0];
-        case 2: // [freq only]
-          return [hz];
-        case 3: // [0x00, freq, 0x00, 0x00]
-          return [0x00, hz, 0x00, 0x00];
-        case 4: // [freq, 0, 0, 0]
-          return [hz, 0, 0, 0];
-        case 5: // [0xFF, freq]
-          return [0xFF, hz];
-        default:
-          return [0x01, hz, 60, 0];
-      }
+      // Known trigger: 01ff, then frequency byte
+      return [0x01, 0xFF, hz];
     }
 
     async function activateState(hz) {
@@ -176,8 +161,8 @@
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
       
-      // Use format 1: [0x01, freq, 60min, 0] - duration 0 might mean "stop"
-      const bytes = buildFlickerCommand(hz, 1);
+      // Format: 01ff + frequency byte
+      const bytes = buildFlickerCommand(hz);
       const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('');
       
       try {
