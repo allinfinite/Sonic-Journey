@@ -33,6 +33,7 @@
     button:disabled { background: #444; color: #666; cursor: not-allowed; }
     button, .preset, .pattern-btn { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     button.danger { background: #ff6b6b; }
+    button.secondary { background: #6c5ce7; }
     #log {
       background: #0d0d1a;
       padding: 16px;
@@ -92,7 +93,34 @@
     .preset .hz { font-size: 14px; color: #888; }
     .preset.active { border-color: #00d4ff; background: #1e3a5f; box-shadow: 0 0 12px rgba(0, 212, 255, 0.3); }
     .preset.active .state-name { color: #00d4ff; }
-
+    
+    /* Protocol selector */
+    .protocol-selector {
+      background: #252547;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 15px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .protocol-selector label { 
+      color: #888; 
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .protocol-selector input[type="radio"] {
+      accent-color: #00d4ff;
+    }
+    .protocol-info {
+      font-size: 11px;
+      color: #666;
+      margin-left: auto;
+    }
   </style>
 </head>
 <body>
@@ -104,6 +132,13 @@
   <div class="buttons">
     <button id="connectBtn" onclick="connectDevice()">Connect</button>
     <button id="disconnectBtn" onclick="disconnectDevice()" disabled class="danger">Disconnect</button>
+  </div>
+  
+  <div class="protocol-selector">
+    <span style="color: #00d4ff; font-weight: 600;">Protocol:</span>
+    <label><input type="radio" name="protocol" value="simple" checked> Simple (01ff)</label>
+    <label><input type="radio" name="protocol" value="streaming"> Streaming (NEW)</label>
+    <span class="protocol-info" id="protocolInfo">Basic on/off flickering</span>
   </div>
 
   <div class="section" style="margin-top: 24px;">
@@ -129,7 +164,10 @@
     let device = null;
     let server = null;
     let commandChar = null;
+    let dataChar = null;
     let flickerInterval = null;
+    let journeyMode = false;
+    let streamTimestamp = 0;
 
     // --- Simplified states: click to activate ---
     const STATES = [
@@ -152,12 +190,56 @@
     function clearLog() {
       document.getElementById('log').innerHTML = '';
     }
+    
+    // Get selected protocol
+    function getProtocol() {
+      const sel = document.querySelector('input[name="protocol"]:checked');
+      return sel ? sel.value : 'simple';
+    }
+    
+    // Update protocol info text
+    function updateProtocolInfo() {
+      const info = document.getElementById('protocolInfo');
+      if (getProtocol() === 'streaming') {
+        info.textContent = 'Official app protocol (12-byte streaming)';
+      } else {
+        info.textContent = 'Basic on/off flickering';
+      }
+    }
+    
+    // Listen for protocol changes
+    document.querySelectorAll('input[name="protocol"]').forEach(r => {
+      r.addEventListener('change', updateProtocolInfo);
+    });
 
-    // Build BLE flicker command. Format: 01ff + frequency
-    function buildFlickerCommand(freqHz) {
-      const hz = Math.max(1, Math.min(50, Math.round(freqHz)));
-      // Known trigger: 01ff, then frequency byte
-      return [0x01, 0xFF, hz];
+    // Build 12-byte streaming command (official protocol)
+    function buildStreamingCommand(intensity, mode = 0x0002, timestamp = 0) {
+      const cmd = new Uint8Array(12);
+      // Little-endian 16-bit values
+      cmd[0] = intensity & 0xFF;
+      cmd[1] = (intensity >> 8) & 0xFF;
+      cmd[2] = mode & 0xFF;
+      cmd[3] = (mode >> 8) & 0xFF;
+      cmd[4] = timestamp & 0xFF;
+      cmd[5] = (timestamp >> 8) & 0xFF;
+      // Bytes 6-11 remain zeros
+      return cmd;
+    }
+    
+    // Start journey mode (required for streaming protocol)
+    async function startJourneyMode() {
+      if (!commandChar) return false;
+      try {
+        // Send 0A to COMMAND_CHAR to start journey mode
+        await commandChar.writeValue(new Uint8Array([0x0A]));
+        log('Journey mode started (0A)', 'success');
+        journeyMode = true;
+        streamTimestamp = 0;
+        return true;
+      } catch (e) {
+        log(`Failed to start journey mode: ${e.message}`, 'error');
+        return false;
+      }
     }
 
     async function activateState(hz) {
@@ -171,16 +253,67 @@
       
       activeState = hz;
       const state = STATES.find(s => s.hz === hz);
+      const protocol = getProtocol();
       
-      // Calculate interval: 1000ms / frequency = ms between flashes
-      // For 3 Hz: 1000/3 = 333ms, for 6 Hz: 1000/6 = 167ms, etc.
+      if (protocol === 'streaming' && dataChar) {
+        // NEW: Official streaming protocol
+        // Start journey mode if not already
+        if (!journeyMode) {
+          const started = await startJourneyMode();
+          if (!started) {
+            log('Cannot use streaming - falling back to simple', 'info');
+            return activateStateSimple(hz, state);
+          }
+        }
+        
+        // Initialize with zeros (reset)
+        try {
+          await dataChar.writeValue(buildStreamingCommand(0, 0x0002, streamTimestamp));
+        } catch (e) {
+          log(`Streaming init failed: ${e.message}`, 'error');
+          return;
+        }
+        
+        // Stream at ~15 Hz (67ms), calculate intensity based on desired flicker frequency
+        const streamRateMs = 67;
+        let phase = 0;
+        const phaseIncrement = (hz * 2 * Math.PI) / (1000 / streamRateMs);
+        
+        flickerInterval = setInterval(async () => {
+          if (!dataChar) {
+            clearInterval(flickerInterval);
+            flickerInterval = null;
+            return;
+          }
+          
+          // Generate sine wave intensity for smooth flicker
+          // Map sine (-1 to 1) to intensity (0 to 65535)
+          const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
+          phase += phaseIncrement;
+          streamTimestamp += streamRateMs;
+          
+          try {
+            await dataChar.writeValue(buildStreamingCommand(intensity, 0x0002, streamTimestamp));
+          } catch (e) {
+            // Silent fail
+          }
+        }, streamRateMs);
+        
+        log(`Streaming: ${state?.name || hz + ' Hz'} (sine wave at ${hz} Hz)`, 'success');
+        
+      } else {
+        // Simple protocol: 01ff repeatedly
+        return activateStateSimple(hz, state);
+      }
+      
+      renderPresets();
+    }
+    
+    // Simple protocol implementation
+    async function activateStateSimple(hz, state) {
       const intervalMs = Math.round(1000 / hz);
-      
-      // Start flickering by sending 01ff (or 01fe, both work) repeatedly at the desired frequency
-      // Using 01ff as it's the known working command
       const trigger = [0x01, 0xFF];
       
-      // Send first trigger immediately
       try {
         await commandChar.writeValue(new Uint8Array(trigger));
       } catch (e) {
@@ -188,7 +321,6 @@
         return;
       }
       
-      // Then send 01ff repeatedly at the desired frequency
       flickerInterval = setInterval(async () => {
         if (!commandChar) {
           clearInterval(flickerInterval);
@@ -198,7 +330,7 @@
         try {
           await commandChar.writeValue(new Uint8Array(trigger));
         } catch (e) {
-          // Silent fail - connection might be lost
+          // Silent fail
         }
       }, intervalMs);
       
@@ -215,11 +347,22 @@
         flickerInterval = null;
       }
       
+      // For streaming protocol, send zero intensity first
+      if (journeyMode && dataChar) {
+        try {
+          await dataChar.writeValue(buildStreamingCommand(0, 0x0002, streamTimestamp));
+          log('Streaming stopped (intensity=0)', 'info');
+        } catch (e) {
+          // Continue to send 02ff anyway
+        }
+      }
+      
       // Send 02ff to turn off the light
       try {
         await commandChar.writeValue(new Uint8Array([0x02, 0xFF]));
         log('Light turned off (02ff)', 'success');
         activeState = null;
+        journeyMode = false;
         renderPresets();
       } catch (e) {
         log(`Failed to turn off: ${e.message}`, 'error');
@@ -287,7 +430,6 @@
 
           const norm = (u) => (String(u || '').toLowerCase().replace(/-/g, ''));
           let fallbackWrite = null;
-          let dataChar = null;
 
           const chars = await controlService.getCharacteristics();
           for (const char of chars) {
@@ -303,12 +445,12 @@
             // Match command char (UUID can vary in format/casing)
             if (norm(uuid) === norm(COMMAND_CHAR)) {
               commandChar = char;
-              log('  ^ Command char ready', 'success');
+              log('  ^ Command char ready (for 01ff/02ff)', 'success');
             }
-            // Also track DATA_CHAR as alternative
+            // DATA_CHAR for streaming protocol
             if (norm(uuid) === norm(DATA_CHAR)) {
               dataChar = char;
-              log('  ^ Data char found (can also write)', 'info');
+              log('  ^ Data char ready (for streaming)', 'success');
             }
             // Fallback: first writable char if COMMAND_CHAR not found
             if (!fallbackWrite && (char.properties.write || char.properties.writeWithoutResponse)) {
@@ -347,7 +489,15 @@
             commandChar = fallbackWrite;
             log('  ^ Using write char as command (COMMAND_CHAR not matched)', 'info');
           }
-          // Store dataChar globally for testing
+          
+          // Log protocol availability
+          if (dataChar) {
+            log('Streaming protocol available!', 'info');
+          } else {
+            log('Streaming protocol unavailable (no DATA_CHAR)', 'info');
+          }
+          
+          // Store globally for testing
           window.dataChar = dataChar;
           window.commandChar = commandChar;
           
@@ -385,7 +535,10 @@
       device = null;
       server = null;
       commandChar = null;
+      dataChar = null;
       activeState = null;
+      journeyMode = false;
+      streamTimestamp = 0;
       renderPresets();
     }
 
@@ -401,24 +554,14 @@
     };
     
     // Console helpers for testing
-    window.tryDataChar = async (hz) => {
-      if (!window.dataChar) {
+    window.tryDataChar = async (hexString) => {
+      if (!dataChar) {
         log('Data char not available', 'error');
         return;
       }
-      const bytes = buildFlickerCommand(hz);
-      await window.dataChar.writeValue(new Uint8Array(bytes));
-      log(`Sent to DATA_CHAR: ${bytes.map(b => b.toString(16).padStart(2, '0')).join('')}`, 'success');
-    };
-    
-    // Test: send 01ff trigger first, then frequency
-    window.testTriggerThenFreq = async (hz) => {
-      if (!commandChar) { log('Not connected', 'error'); return; }
-      await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
-      log('Sent 01ff trigger', 'info');
-      await new Promise(r => setTimeout(r, 100));
-      await commandChar.writeValue(new Uint8Array([hz]));
-      log(`Sent frequency ${hz}`, 'info');
+      const bytes = hexString.match(/.{1,2}/g).map(b => parseInt(b, 16));
+      await dataChar.writeValue(new Uint8Array(bytes));
+      log(`Sent to DATA_CHAR: ${hexString}`, 'success');
     };
     
     // Test: send just 01ff
@@ -426,6 +569,58 @@
       if (!commandChar) { log('Not connected', 'error'); return; }
       await commandChar.writeValue(new Uint8Array([0x01, 0xFF]));
       log('Sent 01ff', 'info');
+    };
+    
+    // Test: start journey mode (0A command)
+    window.startJourney = async () => {
+      if (!commandChar) { log('Not connected', 'error'); return; }
+      await commandChar.writeValue(new Uint8Array([0x0A]));
+      journeyMode = true;
+      log('Sent 0A (journey mode)', 'success');
+    };
+    
+    // Test: send streaming command
+    window.sendStreaming = async (intensity = 32768, mode = 2, ts = 0) => {
+      if (!dataChar) { log('Data char not available', 'error'); return; }
+      const cmd = buildStreamingCommand(intensity, mode, ts);
+      await dataChar.writeValue(cmd);
+      const hex = Array.from(cmd).map(b => b.toString(16).padStart(2, '0')).join('');
+      log(`Streaming: intensity=${intensity}, mode=${mode}, ts=${ts} → ${hex}`, 'success');
+    };
+    
+    // Test: flash with streaming protocol
+    window.testStreamingFlash = async (hz = 10, duration = 5000) => {
+      if (!commandChar || !dataChar) { log('Not fully connected', 'error'); return; }
+      
+      // Start journey mode
+      await commandChar.writeValue(new Uint8Array([0x0A]));
+      log('Journey mode started', 'info');
+      journeyMode = true;
+      
+      // Stream for duration
+      const streamRateMs = 67;
+      let phase = 0;
+      const phaseIncrement = (hz * 2 * Math.PI) / (1000 / streamRateMs);
+      let ts = 0;
+      
+      const interval = setInterval(async () => {
+        const intensity = Math.floor((Math.sin(phase) + 1) / 2 * 65535);
+        phase += phaseIncrement;
+        ts += streamRateMs;
+        
+        try {
+          await dataChar.writeValue(buildStreamingCommand(intensity, 0x0002, ts));
+        } catch (e) {}
+      }, streamRateMs);
+      
+      log(`Streaming test at ${hz} Hz for ${duration}ms...`, 'info');
+      
+      setTimeout(async () => {
+        clearInterval(interval);
+        await dataChar.writeValue(buildStreamingCommand(0, 0x0002, ts));
+        await commandChar.writeValue(new Uint8Array([0x02, 0xFF]));
+        log('Streaming test complete', 'success');
+      }, duration);
     };
 
     renderPresets();

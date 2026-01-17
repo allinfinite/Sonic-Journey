@@ -33,26 +33,45 @@ The Lumenate Nova is a light therapy mask that uses stroboscopic flickering to i
    - **Purpose**: Device status updates
    - **Usage**: Subscribe to receive status notifications
 
-### Command Protocol
+### Command Protocols
 
-**Complete Command Reference**:
+The Nova device supports **two protocols**:
+
+#### Protocol 1: Simple (01ff) - Basic Control
 
 | Command | Effect | Notes |
 |---------|--------|-------|
-| `01fa` | Turn on light | Functionally identical to 01fb-01ff |
-| `01fb` | Turn on light | Functionally identical to 01fa, 01fc-01ff |
-| `01fc` | Turn on light | Functionally identical to 01fa-01fb, 01fd-01ff |
-| `01fd` | Turn on light | Functionally identical to 01fa-01fc, 01fe-01ff |
-| `01fe` | Turn on light | Functionally identical to 01fa-01fd, 01ff |
-| `01ff` | Turn on light | Functionally identical to 01fa-01fe (most commonly used) |
+| `01fa`-`01ff` | Turn on light | All 6 commands are functionally identical |
 | `02ff` | Turn off light | Stops all light output |
+| `0A` | Start journey mode | Enables streaming protocol |
 
-**Confirmed Findings**:
-- Commands `01fa` through `01ff` are **functionally identical** - extensive testing shows no observable differences in brightness, color, LED patterns, or behavior
-- All six commands can be used interchangeably to turn on the light
-- The device only responds to these 7 specific command codes (`01fa`-`01ff`, `02ff`)
-- All other commands are ignored by the device (confirmed through systematic testing)
-- The device does not accept frequency parameters - flickering must be created programmatically
+**Usage**: Send `01ff` repeatedly at intervals to create flicker effect.
+
+#### Protocol 2: Streaming (Official App Protocol) - NEW!
+
+**Discovered via iOS PacketLogger capture (January 2026)**
+
+The official Lumenate app uses a **streaming protocol** that sends real-time brightness values:
+
+1. Send `0A` to COMMAND_CHAR to start "journey mode"
+2. Stream 12-byte commands to DATA_CHAR at ~15 Hz
+3. Device outputs brightness specified in each command
+4. Device sends 6-byte feedback notifications
+
+**12-Byte Command Format** (to DATA_CHAR):
+```
+Bytes 0-1: Intensity (0-65535, little-endian)
+Bytes 2-3: Mode (0x0002 = journey mode)
+Bytes 4-5: Timestamp (milliseconds, little-endian)
+Bytes 6-11: Reserved (zeros)
+```
+
+**Example**: To create a 10 Hz sine wave flicker:
+- Send commands at 67ms intervals (15 Hz stream rate)
+- Calculate intensity: `(sin(phase) + 1) / 2 * 65535`
+- Increment phase by `10 * 2π / 15` per command
+
+See `PROTOCOL_ANALYSIS.md` for full capture analysis.
 
 #### Flicker Control
 
@@ -130,20 +149,51 @@ testTrigger();
 
 ## Technical Notes
 
-### Why Programmatic Flickering?
+### Protocol Comparison
 
-**Critical Discovery**: The device firmware does not accept frequency parameters. Extensive testing confirms:
+| Feature | Simple Protocol | Streaming Protocol |
+|---------|-----------------|-------------------|
+| Command target | COMMAND_CHAR | DATA_CHAR |
+| Command size | 2 bytes | 12 bytes |
+| Frequency control | Software timing | Value in command |
+| Brightness control | None (on/off) | Full 16-bit range |
+| Waveform | Square wave only | Any waveform |
+| Setup required | None | Send `0A` first |
 
-- **Attempted**: `01ff + frequency byte` (e.g., `01ff03` for 3 Hz, `01ff0a` for 10 Hz)
-- **Result**: Device receives command (confirmed by BLE notifications) but does not activate lights
-- **Attempted**: Just frequency bytes (e.g., `03`, `0a`, `0f`)
-- **Result**: Device receives command but does not activate lights
-- **Attempted**: Other command formats and patterns
-- **Result**: All ignored except the 7 known commands (`01fa`-`01ff`, `02ff`)
+### Simple Protocol Details
 
-**Solution**: Create the flicker pattern programmatically by sending `01ff` repeatedly at JavaScript intervals. The flicker frequency is controlled entirely in software, not by device firmware.
+The simple protocol sends `01ff` repeatedly to create an on/off flicker:
 
-**Implementation**: Calculate interval as `1000ms / desired_frequency`, then send `01ff` at that interval using `setInterval()`.
+- **Pros**: Easy to implement, works reliably
+- **Cons**: Only square wave, no brightness control
+- **How**: Send `01ff` at `1000ms / frequency` intervals
+
+### Streaming Protocol Details (Reverse-Engineered)
+
+The official app uses a streaming protocol for smooth, customizable flicker:
+
+1. **Initialize**: Send `0A` to COMMAND_CHAR (starts journey mode)
+2. **Stream**: Send 12-byte commands to DATA_CHAR at ~15 Hz
+3. **Feedback**: Receive 6-byte notifications from device
+
+**Command Structure** (12 bytes, little-endian):
+```javascript
+const cmd = new Uint8Array(12);
+cmd[0] = intensity & 0xFF;        // Intensity low byte
+cmd[1] = (intensity >> 8) & 0xFF; // Intensity high byte  
+cmd[2] = mode & 0xFF;             // Mode low (0x02)
+cmd[3] = (mode >> 8) & 0xFF;      // Mode high (0x00)
+cmd[4] = timestamp & 0xFF;        // Timestamp low
+cmd[5] = (timestamp >> 8) & 0xFF; // Timestamp high
+// Bytes 6-11 are zeros
+```
+
+**Waveform Generation**:
+```javascript
+// Sine wave for smooth flicker
+const phase = (Date.now() % (1000 / flickerHz)) / (1000 / flickerHz);
+const intensity = Math.floor((Math.sin(phase * 2 * Math.PI) + 1) / 2 * 65535);
+```
 
 ### Connection Flow
 
