@@ -362,20 +362,17 @@ export class NovaController {
   }
 
   /**
-   * Stop flickering and turn off light
+   * Stop flickering (just stops the interval, doesn't send 02ff)
    */
   stopFlicker(): void {
     if (this.flickerInterval) {
       clearInterval(this.flickerInterval);
       this.flickerInterval = null;
+      this.addDebugLog('Flicker interval stopped', 'info');
     }
 
-    // Send 02ff to turn off light
-    if (this.state.commandChar && this.state.isConnected) {
-      this.state.commandChar.writeValue(new Uint8Array([0x02, 0xff])).catch((error: unknown) => {
-        console.error('Failed to turn off Nova:', error);
-      });
-    }
+    // Don't send 02ff - it turns off the device and causes issues
+    // Just stopping the interval is enough
 
     this.updateState({
       isFlickering: false,
