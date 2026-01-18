@@ -246,7 +246,7 @@ export class NovaController {
    * Start flickering at specified frequency
    * Returns false if device is not connected, true on success
    */
-  startFlicker(frequencyHz: number): boolean {
+  async startFlicker(frequencyHz: number): Promise<boolean> {
     this.addDebugLog(`startFlicker called: ${frequencyHz} Hz`, 'info');
     
     // Guard against concurrent calls
@@ -292,28 +292,38 @@ export class NovaController {
     // Send 01ff command repeatedly to create flicker
     const trigger = new Uint8Array([0x01, 0xff]);
 
-    // Send initial command
+    // Send initial command - wait for it to complete before starting interval
     try {
       this.addDebugLog('Sending initial 01ff command...', 'info');
-      // Use await to ensure the initial command is sent before starting interval
-      this.state.commandChar.writeValue(trigger).then(() => {
-        this.addDebugLog('Initial 01ff command sent successfully', 'success');
-      }).catch((error: unknown) => {
-        this.addDebugLog(`Initial flicker command failed: ${error}`, 'error');
-        // Don't disconnect immediately - might be a transient error
-        // Just stop the flicker interval
-        if (this.flickerInterval) {
-          clearInterval(this.flickerInterval);
-          this.flickerInterval = null;
-        }
+      
+      // Wait a bit after connection before sending first command (device might need initialization)
+      // But we already connected, so let's just send it
+      
+      // Use await to ensure the initial command completes before starting interval
+      await this.state.commandChar.writeValue(trigger);
+      this.addDebugLog('Initial 01ff command sent successfully', 'success');
+      
+      // Wait a small delay after initial command before starting interval
+      // This gives the device time to process the command
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Double-check device is still connected before starting interval
+      if (!this.state.device?.gatt?.connected || !this.state.commandChar) {
+        this.addDebugLog('Device disconnected after initial command', 'error');
+        this.isStartingFlicker = false;
+        return false;
+      }
+    } catch (error) {
+      this.addDebugLog(`Initial flicker command error: ${error}`, 'error');
+      // Check if device disconnected due to the error
+      if (!this.state.device?.gatt?.connected) {
+        this.addDebugLog('Device disconnected during initial command', 'error');
         this.updateState({
+          isConnected: false,
           isFlickering: false,
           currentFrequency: null,
         });
-      });
-    } catch (error) {
-      this.addDebugLog(`Initial flicker command error: ${error}`, 'error');
-      // Don't disconnect on initial command error - might be transient
+      }
       this.isStartingFlicker = false;
       return false;
     }
