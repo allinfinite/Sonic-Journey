@@ -8,6 +8,8 @@ import { ENTRAINMENT_PRESETS } from '../types/journey';
 import { Oscillator } from './Oscillator';
 import { Envelope } from './Envelope';
 import { SafetyProcessor } from './SafetyProcessor';
+import { createMelodyMixer } from './melodyGenerator';
+import type { MelodyStyle, MelodyScale, NoteDensity } from '../types/melodyGenerator';
 
 // Map rhythm mode to entrainment mode
 const rhythmToEntrainment: Record<string, EntrainmentMode> = {
@@ -246,7 +248,200 @@ export class OfflineRenderer {
       }
     }
 
+    // Melody Layer - ambient melodic content
+    if (layers.melody_layer === true && phase.melody_enabled !== false) {
+      const melodyAudio = this.renderMelodyLayer(phase, samples, entrainmentMode);
+      
+      const melodyIntensity = phase.melody_intensity ?? 0.3;
+      const ampEnv = envelope.sCurveRamp(
+        samples,
+        phase.amplitude.start * melodyIntensity,
+        phase.amplitude.end * melodyIntensity
+      );
+
+      for (let i = 0; i < samples; i++) {
+        mixed[i] += melodyAudio[i] * ampEnv[i];
+      }
+    }
+
     return mixed;
+  }
+
+  /**
+   * Render melody layer for a phase
+   */
+  private renderMelodyLayer(
+    phase: PhaseConfig,
+    samples: number,
+    entrainmentMode: EntrainmentMode
+  ): Float32Array {
+    const durationSeconds = samples / this.sampleRate;
+    const foundationFreq = (phase.frequency.start + phase.frequency.end) / 2;
+    
+    // Get melody settings from phase
+    const style: MelodyStyle = phase.melody_style || 'mixed';
+    const scale: MelodyScale = phase.melody_scale || 'pentatonic_minor';
+    const intensity = phase.melody_intensity ?? 0.3;
+    const density: NoteDensity = phase.melody_density || 'moderate';
+    
+    // Create melody mixer with phase settings
+    const melodyMixer = createMelodyMixer({
+      config: {
+        frequencyMin: 200,
+        frequencyMax: 800,
+        rootFrequency: foundationFreq,
+        scale,
+        intensity,
+        droneWeight: style === 'drone' ? 1 : (style === 'mixed' ? 0.4 : 0),
+        arpeggioWeight: style === 'arpeggio' ? 1 : (style === 'mixed' ? 0.2 : 0),
+        evolvingWeight: style === 'evolving' ? 1 : (style === 'mixed' ? 0.3 : 0),
+        harmonicWeight: style === 'harmonic' ? 1 : (style === 'mixed' ? 0.1 : 0),
+        noteDensity: density,
+        stereoWidth: 0.6,
+        spaceAmount: 0.4,
+        attackTime: 0.1,
+        releaseTime: 0.5,
+        filterCutoff: 2000,
+        filterResonance: 0.2,
+      },
+      sampleRate: this.sampleRate,
+    });
+
+    // Generate melody synchronously for offline rendering
+    // We'll generate a simple version here since full async isn't ideal for offline
+    const output = new Float32Array(samples);
+    
+    // For offline rendering, we generate a simpler version
+    // using direct oscillator synthesis based on style
+    this.generateMelodyDirect(
+      output,
+      phase,
+      foundationFreq,
+      scale,
+      style,
+      density,
+      entrainmentMode
+    );
+
+    return output;
+  }
+
+  /**
+   * Direct melody generation for offline rendering
+   */
+  private generateMelodyDirect(
+    output: Float32Array,
+    phase: PhaseConfig,
+    foundationFreq: number,
+    scale: MelodyScale,
+    style: MelodyStyle,
+    density: NoteDensity,
+    entrainmentMode: EntrainmentMode
+  ): void {
+    const samples = output.length;
+    const durationSeconds = samples / this.sampleRate;
+    const intensity = phase.melody_intensity ?? 0.3;
+    
+    // Import scale utilities
+    const { getScaleNotesInRange, foundationToMelodyRoot, DENSITY_MULTIPLIERS } = require('../types/melodyGenerator');
+    
+    // Get scale notes
+    const rootFreq = foundationToMelodyRoot(foundationFreq);
+    const scaleNotes: number[] = getScaleNotesInRange(rootFreq, scale, 200, 800);
+    
+    if (scaleNotes.length === 0) return;
+
+    // Calculate note timing based on entrainment and density
+    const preset = ENTRAINMENT_PRESETS[entrainmentMode];
+    const densityMult = DENSITY_MULTIPLIERS[density] || 0.5;
+    const noteRate = (preset.rate > 0 ? preset.rate : 0.5) * densityMult;
+    const noteDuration = Math.max(0.5, 1 / noteRate);
+    const noteGap = noteDuration * 0.1;
+    
+    const twoPiOverSr = (2 * Math.PI) / this.sampleRate;
+    let noteIndex = 0;
+    let phase_osc = 0;
+    let currentNoteStart = 0;
+    let currentFreq = scaleNotes[0];
+    
+    for (let i = 0; i < samples; i++) {
+      const time = i / this.sampleRate;
+      const noteTime = time - currentNoteStart;
+      
+      // Check if it's time for a new note
+      if (noteTime >= noteDuration) {
+        currentNoteStart = time;
+        
+        // Select next note based on style
+        switch (style) {
+          case 'drone':
+            // Drone stays on root or moves slowly
+            if (Math.random() < 0.1) {
+              noteIndex = Math.floor(Math.random() * Math.min(3, scaleNotes.length));
+            }
+            break;
+            
+          case 'arpeggio':
+            // Sequential movement through scale
+            noteIndex = (noteIndex + 1) % scaleNotes.length;
+            break;
+            
+          case 'evolving':
+            // Probabilistic movement
+            const direction = Math.random() < 0.6 ? 1 : -1;
+            const step = Math.floor(Math.random() * 3) + 1;
+            noteIndex = Math.max(0, Math.min(scaleNotes.length - 1, noteIndex + direction * step));
+            break;
+            
+          case 'harmonic':
+            // Jump to harmonically related notes
+            const harmonics = [0, 4, 7, 12]; // Root, third, fifth, octave in scale
+            const harmonicIdx = harmonics[Math.floor(Math.random() * harmonics.length)];
+            noteIndex = Math.min(harmonicIdx, scaleNotes.length - 1);
+            break;
+            
+          case 'mixed':
+          default:
+            // Random selection of styles
+            const r = Math.random();
+            if (r < 0.4) {
+              noteIndex = (noteIndex + 1) % scaleNotes.length;
+            } else if (r < 0.7) {
+              const dir = Math.random() < 0.5 ? 1 : -1;
+              noteIndex = Math.max(0, Math.min(scaleNotes.length - 1, noteIndex + dir));
+            } else {
+              noteIndex = Math.floor(Math.random() * scaleNotes.length);
+            }
+            break;
+        }
+        
+        currentFreq = scaleNotes[noteIndex];
+      }
+      
+      // ADSR envelope for note
+      const attackTime = 0.05;
+      const releaseTime = 0.1;
+      const sustainLevel = 0.8;
+      let envelope = 0;
+      
+      if (noteTime < attackTime) {
+        envelope = noteTime / attackTime;
+      } else if (noteTime < noteDuration - releaseTime - noteGap) {
+        envelope = sustainLevel;
+      } else if (noteTime < noteDuration - noteGap) {
+        envelope = sustainLevel * (1 - (noteTime - (noteDuration - releaseTime - noteGap)) / releaseTime);
+      }
+      
+      // Generate sample
+      const sample = Math.sin(phase_osc) * intensity * envelope;
+      output[i] = sample;
+      
+      // Update phase for current frequency
+      phase_osc += twoPiOverSr * currentFreq;
+      if (phase_osc > 2 * Math.PI) {
+        phase_osc -= 2 * Math.PI;
+      }
+    }
   }
 
   /**

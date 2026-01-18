@@ -6,6 +6,12 @@
 import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode, NovaPattern } from '../types/journey';
 import { ENTRAINMENT_PRESETS, NOVA_PATTERN_PRESETS } from '../types/journey';
 import { novaController, getNovaFrequencyForPhase } from './NovaController';
+import type { MelodyStyle, MelodyScale, NoteDensity } from '../types/melodyGenerator';
+import { 
+  foundationToMelodyRoot, 
+  getScaleNotesInRange,
+  DENSITY_MULTIPLIERS 
+} from '../types/melodyGenerator';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
@@ -65,6 +71,40 @@ export class SynthEngine {
     carrierFreq: 200, // Default carrier frequency
   };
 
+  // Melody layer - polyphonic voices for ambient melodic content
+  private melody: {
+    voices: Array<{
+      osc: OscillatorNode | null;
+      gain: GainNode | null;
+      panner: StereoPannerNode | null;
+      freq: number;
+      targetFreq: number;
+      active: boolean;
+    }>;
+    masterGain: GainNode | null;
+    enabled: boolean;
+    style: MelodyStyle;
+    scale: MelodyScale;
+    intensity: number;
+    density: NoteDensity;
+    scaleNotes: number[];
+    currentNoteIndex: number;
+    lastNoteTime: number;
+    noteInterval: number; // seconds between notes
+  } = {
+    voices: [],
+    masterGain: null,
+    enabled: false,
+    style: 'mixed',
+    scale: 'pentatonic_minor',
+    intensity: 0.3,
+    density: 'moderate',
+    scaleNotes: [],
+    currentNoteIndex: 0,
+    lastNoteTime: 0,
+    noteInterval: 2,
+  };
+
   // Current parameters
   private currentParams: AudioParams = {
     foundationFreq: 40,
@@ -77,6 +117,7 @@ export class SynthEngine {
       foundation: true,
       harmony: true,
       atmosphere: false,
+      melody: false,
     },
   };
 
@@ -209,6 +250,40 @@ export class SynthEngine {
     this.binaural.right.gain.connect(this.binaural.right.panner);
     this.binaural.right.panner.connect(this.master);
 
+    // Melody layer - 4 polyphonic voices
+    this.melody.masterGain = this.ctx.createGain();
+    this.melody.masterGain.gain.value = 0; // Start muted
+    this.melody.masterGain.connect(this.master);
+
+    const NUM_MELODY_VOICES = 4;
+    this.melody.voices = [];
+    
+    for (let i = 0; i < NUM_MELODY_VOICES; i++) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 220; // Default A3
+      
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0; // Start silent
+      
+      const panner = this.ctx.createStereoPanner();
+      // Spread voices across stereo field
+      panner.pan.value = (i / (NUM_MELODY_VOICES - 1)) * 1.2 - 0.6;
+      
+      osc.connect(gain);
+      gain.connect(panner);
+      panner.connect(this.melody.masterGain);
+      
+      this.melody.voices.push({
+        osc,
+        gain,
+        panner,
+        freq: 220,
+        targetFreq: 220,
+        active: false,
+      });
+    }
+
     // Start all oscillators
     this.foundation.osc.start();
     this.harmony.osc.start();
@@ -217,6 +292,11 @@ export class SynthEngine {
     this.fmLfo.osc.start();
     this.binaural.left.osc.start();
     this.binaural.right.osc.start();
+    
+    // Start melody oscillators
+    for (const voice of this.melody.voices) {
+      voice.osc?.start();
+    }
   }
 
   /**
@@ -229,6 +309,7 @@ export class SynthEngine {
       this.currentParams.layers.foundation = config.layers.base_carrier !== false;
       this.currentParams.layers.harmony = config.layers.support_carrier !== false;
       this.currentParams.layers.atmosphere = config.layers.texture_layer === true;
+      this.currentParams.layers.melody = config.layers.melody_layer === true;
     }
 
     if (this.isPlaying) {
@@ -308,6 +389,12 @@ export class SynthEngine {
       }
     }
 
+    // Pause melody layer
+    if (this.melody.enabled && this.melody.masterGain && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.melody.masterGain.gain.setTargetAtTime(0, now, 0.3);
+    }
+
     this.onPlayStateChange?.(false);
   }
 
@@ -347,6 +434,20 @@ export class SynthEngine {
       }
       this.binaural.enabled = false;
       this.binaural.beatFreq = null;
+    }
+
+    // Stop melody layer
+    if (this.melody.masterGain && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.melody.masterGain.gain.setTargetAtTime(0, now, 0.3);
+      for (const voice of this.melody.voices) {
+        if (voice.gain) {
+          voice.gain.gain.setTargetAtTime(0, now, 0.3);
+        }
+        voice.active = false;
+      }
+      this.melody.enabled = false;
+      this.melody.currentNoteIndex = 0;
     }
 
     this.onTimeUpdate?.(0);
@@ -487,6 +588,9 @@ export class SynthEngine {
     
     // Update binaural beats if enabled
     this.updateBinauralBeats(phase);
+    
+    // Update melody layer if enabled
+    this.updateMelody(phase, freq, entrainmentMode);
   }
 
   /**
@@ -598,6 +702,11 @@ export class SynthEngine {
           }
           if (this.atmosphere.gain) {
             this.atmosphere.gain.gain.setTargetAtTime(layers.atmosphere ? 0.15 : 0, now, rampTime);
+          }
+          if (this.melody.masterGain) {
+            const melodyGain = layers.melody ? this.melody.intensity * 0.5 : 0;
+            this.melody.masterGain.gain.setTargetAtTime(melodyGain, now, rampTime);
+            this.melody.enabled = layers.melody;
           }
           this.currentParams.layers = layers;
         }
@@ -904,6 +1013,178 @@ export class SynthEngine {
         this.binaural.right.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
       }
       this.binaural.enabled = true;
+    }
+  }
+
+  /**
+   * Update melody layer based on current phase
+   */
+  private updateMelody(phase: PhaseConfig | null, foundationFreq: number, entrainmentMode: EntrainmentMode): void {
+    if (!phase || !this.ctx || !this.melody.masterGain) return;
+
+    // Check if melody is enabled for this phase
+    const melodyEnabled = (this.journeyConfig?.layers?.melody_layer === true) && 
+                          (phase.melody_enabled !== false);
+
+    if (!melodyEnabled) {
+      // Disable melody
+      if (this.melody.enabled) {
+        const now = this.ctx.currentTime;
+        const rampTime = 0.5;
+        this.melody.masterGain.gain.setTargetAtTime(0, now, rampTime);
+        
+        // Fade out all voices
+        for (const voice of this.melody.voices) {
+          if (voice.gain) {
+            voice.gain.gain.setTargetAtTime(0, now, rampTime);
+          }
+          voice.active = false;
+        }
+        this.melody.enabled = false;
+      }
+      return;
+    }
+
+    // Get melody settings from phase or use defaults
+    const style = phase.melody_style || 'mixed';
+    const scale = phase.melody_scale || 'pentatonic_minor';
+    const intensity = phase.melody_intensity ?? 0.3;
+    const density = phase.melody_density || 'moderate';
+
+    // Update scale notes if scale or frequency changed significantly
+    const rootFreq = foundationToMelodyRoot(foundationFreq);
+    const scaleChanged = this.melody.scale !== scale || 
+                         this.melody.scaleNotes.length === 0 ||
+                         Math.abs(this.melody.scaleNotes[0] - rootFreq) > 20;
+
+    if (scaleChanged) {
+      this.melody.scale = scale;
+      this.melody.scaleNotes = getScaleNotesInRange(rootFreq, scale, 200, 800);
+      this.melody.currentNoteIndex = 0;
+    }
+
+    // Update note interval based on density and entrainment
+    const densityMult = DENSITY_MULTIPLIERS[density];
+    const preset = ENTRAINMENT_PRESETS[entrainmentMode];
+    const baseInterval = preset.rate > 0 ? 1 / (preset.rate * densityMult) : 2;
+    this.melody.noteInterval = Math.max(0.5, Math.min(8, baseInterval));
+    this.melody.density = density;
+    this.melody.intensity = intensity;
+    this.melody.style = style;
+
+    const now = this.ctx.currentTime;
+    const rampTime = 0.3;
+
+    // Enable melody layer if not already enabled
+    if (!this.melody.enabled) {
+      this.melody.masterGain.gain.setTargetAtTime(intensity * 0.5, now, rampTime);
+      this.melody.enabled = true;
+      this.melody.lastNoteTime = now;
+    } else {
+      // Update intensity if changed
+      this.melody.masterGain.gain.setTargetAtTime(intensity * 0.5, now, rampTime);
+    }
+
+    // Trigger notes based on style and timing
+    if (this.melody.scaleNotes.length > 0) {
+      const timeSinceLastNote = now - this.melody.lastNoteTime;
+      
+      if (timeSinceLastNote >= this.melody.noteInterval) {
+        this.triggerMelodyNote(style, now);
+        this.melody.lastNoteTime = now;
+      }
+    }
+  }
+
+  /**
+   * Trigger a melody note based on style
+   */
+  private triggerMelodyNote(style: MelodyStyle, now: number): void {
+    if (!this.ctx || this.melody.scaleNotes.length === 0) return;
+
+    const rampTime = 0.1;
+    const noteLength = this.melody.noteInterval * 0.8;
+    const releaseTime = 0.2;
+
+    // Find an available voice or steal the oldest
+    let voice = this.melody.voices.find(v => !v.active);
+    if (!voice) {
+      voice = this.melody.voices[0]; // Steal first voice
+    }
+
+    // Select note based on style
+    let noteFreq: number;
+    let voiceCount = 1;
+
+    switch (style) {
+      case 'drone':
+        // Drone: hold root note with slow variations
+        noteFreq = this.melody.scaleNotes[0];
+        voiceCount = 3; // Use multiple voices for richness
+        break;
+
+      case 'arpeggio':
+        // Arpeggio: cycle through scale notes
+        noteFreq = this.melody.scaleNotes[this.melody.currentNoteIndex];
+        this.melody.currentNoteIndex = (this.melody.currentNoteIndex + 1) % this.melody.scaleNotes.length;
+        break;
+
+      case 'evolving':
+        // Evolving: probabilistic note selection with tendency
+        const direction = Math.random() < 0.6 ? 1 : -1;
+        const step = Math.floor(Math.random() * 3) + 1;
+        this.melody.currentNoteIndex = Math.max(0, Math.min(
+          this.melody.scaleNotes.length - 1,
+          this.melody.currentNoteIndex + direction * step
+        ));
+        noteFreq = this.melody.scaleNotes[this.melody.currentNoteIndex];
+        break;
+
+      case 'harmonic':
+        // Harmonic: upper partials of foundation
+        const harmonic = [2, 3, 4, 5, 6][Math.floor(Math.random() * 5)];
+        noteFreq = this.currentParams.foundationFreq * harmonic;
+        // Clamp to audible melody range
+        while (noteFreq < 200) noteFreq *= 2;
+        while (noteFreq > 800) noteFreq /= 2;
+        break;
+
+      case 'mixed':
+      default:
+        // Mixed: randomly choose style per note
+        const styles: MelodyStyle[] = ['arpeggio', 'evolving', 'harmonic'];
+        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+        return this.triggerMelodyNote(randomStyle, now);
+    }
+
+    // Apply note to voice(s)
+    const intensity = this.melody.intensity;
+    
+    for (let i = 0; i < voiceCount && i < this.melody.voices.length; i++) {
+      const v = this.melody.voices[(this.melody.voices.indexOf(voice!) + i) % this.melody.voices.length];
+      if (!v.osc || !v.gain) continue;
+
+      // Slight detune for richness in drone mode
+      const detune = style === 'drone' ? (i - 1) * 5 : 0;
+      const freq = noteFreq * Math.pow(2, detune / 1200);
+
+      v.osc.frequency.setTargetAtTime(freq, now, rampTime);
+      v.freq = freq;
+      v.targetFreq = noteFreq;
+      v.active = true;
+
+      // Note envelope: attack -> sustain -> release
+      const voiceGain = intensity / voiceCount;
+      v.gain.gain.cancelScheduledValues(now);
+      v.gain.gain.setValueAtTime(0, now);
+      v.gain.gain.linearRampToValueAtTime(voiceGain, now + rampTime); // Attack
+      v.gain.gain.setValueAtTime(voiceGain, now + noteLength - releaseTime); // Hold
+      v.gain.gain.linearRampToValueAtTime(0, now + noteLength); // Release
+
+      // Schedule voice to become inactive
+      setTimeout(() => {
+        v.active = false;
+      }, noteLength * 1000);
     }
   }
 

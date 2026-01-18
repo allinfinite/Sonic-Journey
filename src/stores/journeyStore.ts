@@ -102,6 +102,7 @@ interface JourneyState {
   addPhase: () => void;
   removePhase: (index: number) => void;
   setLayers: (layers: JourneyConfig['layers']) => void;
+  toggleMelodyLayer: (enabled: boolean) => void;
 
   // Playback actions
   play: () => void;
@@ -227,6 +228,14 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
   setLayers: (layers) => {
     const { journey } = get();
     const newJourney = { ...journey, layers };
+    set({ journey: newJourney, isDirty: true });
+    synthEngine.setJourneyConfig(newJourney);
+  },
+
+  toggleMelodyLayer: (enabled) => {
+    const { journey } = get();
+    const newLayers = { ...journey.layers, melody_layer: enabled };
+    const newJourney = { ...journey, layers: newLayers };
     set({ journey: newJourney, isDirty: true });
     synthEngine.setJourneyConfig(newJourney);
   },

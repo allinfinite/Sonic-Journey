@@ -102,6 +102,9 @@ export const NOVA_PATTERN_PRESETS: Record<string, NovaPattern> = {
   organic_alpha: { type: 'wave', baseFrequency: 10, waveAmplitude: 1.5, wavePeriod: 6000, randomVariation: 15 },
 };
 
+// Import melody types
+import type { MelodyStyle, MelodyScale, NoteDensity } from './melodyGenerator';
+
 // Phase configuration for a single journey stage
 export interface PhaseConfig {
   name: string;
@@ -121,6 +124,12 @@ export interface PhaseConfig {
   binaural_enabled?: boolean; // Enable binaural beats for this phase
   binaural_beat_frequency?: number; // Binaural beat frequency (Hz) - e.g., 3, 6, 10, 15 for Delta/Theta/Alpha/Beta
   binaural_carrier_frequency?: number; // Carrier frequency (Hz) - default 200 Hz, range 100-400 Hz recommended
+  // Melody layer settings
+  melody_enabled?: boolean; // Enable melody layer for this phase
+  melody_style?: MelodyStyle; // Melody generation style
+  melody_scale?: MelodyScale; // Musical scale for melody
+  melody_intensity?: number; // Melody volume (0-1)
+  melody_density?: NoteDensity; // Note density (sparse, moderate, dense)
 }
 
 // Layer configuration
@@ -128,6 +137,7 @@ export interface LayerConfig {
   base_carrier: boolean;
   support_carrier: boolean;
   texture_layer: boolean;
+  melody_layer: boolean;
 }
 
 // Complete journey configuration
@@ -163,6 +173,7 @@ export const DEFAULT_LAYERS: LayerConfig = {
   base_carrier: true,
   support_carrier: true,
   texture_layer: false,
+  melody_layer: false,
 };
 
 // Audio parameters for real-time modulation
@@ -177,6 +188,7 @@ export interface AudioParams {
     foundation: boolean;
     harmony: boolean;
     atmosphere: boolean;
+    melody: boolean;
   };
 }
 
