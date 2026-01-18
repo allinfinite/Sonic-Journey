@@ -81,6 +81,8 @@ export class SynthEngine {
   private animationId: number | null = null;
   private manualOverride = false;
   private manualOverrideTimeout: ReturnType<typeof setTimeout> | null = null;
+  private lastNovaUpdateTime = 0; // Debounce Nova updates
+  private novaUpdateDebounceMs = 500; // Only update Nova every 500ms
 
   // Callbacks
   private onTimeUpdate?: (time: number) => void;
@@ -473,8 +475,12 @@ export class SynthEngine {
     // Notify phase change
     this.onPhaseChange?.(phaseIndex, phase);
     
-    // Update Nova flicker if enabled
-    this.updateNovaFlicker(phase);
+    // Update Nova flicker if enabled (debounced to prevent rapid calls)
+    const novaUpdateTime = Date.now();
+    if (novaUpdateTime - this.lastNovaUpdateTime >= this.novaUpdateDebounceMs) {
+      this.updateNovaFlicker(phase);
+      this.lastNovaUpdateTime = novaUpdateTime;
+    }
     
     // Update binaural beats if enabled
     this.updateBinauralBeats(phase);

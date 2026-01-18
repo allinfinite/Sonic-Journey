@@ -287,7 +287,16 @@ export class NovaController {
     this.stopFlicker();
 
     // Calculate interval (ms) from frequency (Hz)
-    const intervalMs = Math.round(1000 / frequencyHz);
+    // Minimum interval of 150ms to avoid overwhelming the device
+    const minIntervalMs = 150;
+    const calculatedIntervalMs = Math.round(1000 / frequencyHz);
+    const intervalMs = Math.max(calculatedIntervalMs, minIntervalMs);
+    
+    // Log if we're throttling the frequency
+    if (calculatedIntervalMs < minIntervalMs) {
+      const throttledHz = Math.round(1000 / intervalMs);
+      this.addDebugLog(`Frequency ${frequencyHz} Hz throttled to ${throttledHz} Hz (min interval: ${minIntervalMs}ms)`, 'warn');
+    }
 
     // Send 01ff command repeatedly to create flicker
     const trigger = new Uint8Array([0x01, 0xff]);
