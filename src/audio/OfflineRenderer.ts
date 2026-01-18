@@ -8,8 +8,8 @@ import { ENTRAINMENT_PRESETS } from '../types/journey';
 import { Oscillator } from './Oscillator';
 import { Envelope } from './Envelope';
 import { SafetyProcessor } from './SafetyProcessor';
-import { createMelodyMixer } from './melodyGenerator';
 import type { MelodyStyle, MelodyScale, NoteDensity } from '../types/melodyGenerator';
+import { getScaleNotesInRange, foundationToMelodyRoot, DENSITY_MULTIPLIERS } from '../types/melodyGenerator';
 
 // Map rhythm mode to entrainment mode
 const rhythmToEntrainment: Record<string, EntrainmentMode> = {
@@ -275,37 +275,12 @@ export class OfflineRenderer {
     samples: number,
     entrainmentMode: EntrainmentMode
   ): Float32Array {
-    const durationSeconds = samples / this.sampleRate;
     const foundationFreq = (phase.frequency.start + phase.frequency.end) / 2;
     
     // Get melody settings from phase
     const style: MelodyStyle = phase.melody_style || 'mixed';
     const scale: MelodyScale = phase.melody_scale || 'pentatonic_minor';
-    const intensity = phase.melody_intensity ?? 0.3;
     const density: NoteDensity = phase.melody_density || 'moderate';
-    
-    // Create melody mixer with phase settings
-    const melodyMixer = createMelodyMixer({
-      config: {
-        frequencyMin: 200,
-        frequencyMax: 800,
-        rootFrequency: foundationFreq,
-        scale,
-        intensity,
-        droneWeight: style === 'drone' ? 1 : (style === 'mixed' ? 0.4 : 0),
-        arpeggioWeight: style === 'arpeggio' ? 1 : (style === 'mixed' ? 0.2 : 0),
-        evolvingWeight: style === 'evolving' ? 1 : (style === 'mixed' ? 0.3 : 0),
-        harmonicWeight: style === 'harmonic' ? 1 : (style === 'mixed' ? 0.1 : 0),
-        noteDensity: density,
-        stereoWidth: 0.6,
-        spaceAmount: 0.4,
-        attackTime: 0.1,
-        releaseTime: 0.5,
-        filterCutoff: 2000,
-        filterResonance: 0.2,
-      },
-      sampleRate: this.sampleRate,
-    });
 
     // Generate melody synchronously for offline rendering
     // We'll generate a simple version here since full async isn't ideal for offline
@@ -339,11 +314,7 @@ export class OfflineRenderer {
     entrainmentMode: EntrainmentMode
   ): void {
     const samples = output.length;
-    const durationSeconds = samples / this.sampleRate;
     const intensity = phase.melody_intensity ?? 0.3;
-    
-    // Import scale utilities
-    const { getScaleNotesInRange, foundationToMelodyRoot, DENSITY_MULTIPLIERS } = require('../types/melodyGenerator');
     
     // Get scale notes
     const rootFreq = foundationToMelodyRoot(foundationFreq);

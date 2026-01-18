@@ -101,15 +101,7 @@ export class MelodyMixer {
    * Generate melody using the specified style or mix
    */
   async generate(options: GenerateOptions): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
-    const {
-      durationSeconds,
-      foundationFreq,
-      freqEnd,
-      entrainmentMode = 'breathing',
-      style = 'mixed',
-      progress = 0,
-      onProgress,
-    } = options;
+    const style = options.style || 'mixed';
 
     // For single style, use that generator directly
     if (style !== 'mixed' && style !== 'upload') {
@@ -127,56 +119,47 @@ export class MelodyMixer {
     style: MelodyStyle,
     options: GenerateOptions
   ): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
-    const {
-      durationSeconds,
-      foundationFreq,
-      freqEnd,
-      entrainmentMode = 'breathing',
-      progress = 0,
-      onProgress,
-    } = options;
-
     switch (style) {
       case 'drone':
         return this.droneGenerator.generate(
-          durationSeconds,
-          foundationFreq,
-          progress,
-          onProgress
+          options.durationSeconds,
+          options.foundationFreq,
+          options.progress ?? 0,
+          options.onProgress
         );
 
       case 'arpeggio':
         return this.arpeggioGenerator.generate(
-          durationSeconds,
-          foundationFreq,
-          entrainmentMode,
-          progress,
-          onProgress
+          options.durationSeconds,
+          options.foundationFreq,
+          options.entrainmentMode ?? 'breathing',
+          options.progress ?? 0,
+          options.onProgress
         );
 
       case 'evolving':
         return this.evolvingSequencer.generate(
-          durationSeconds,
-          foundationFreq,
-          entrainmentMode,
-          progress,
-          onProgress
+          options.durationSeconds,
+          options.foundationFreq,
+          options.entrainmentMode ?? 'breathing',
+          options.progress ?? 0,
+          options.onProgress
         );
 
       case 'harmonic':
         return this.harmonicGenerator.generate(
-          durationSeconds,
-          foundationFreq,
-          freqEnd,
-          progress,
-          onProgress
+          options.durationSeconds,
+          options.foundationFreq,
+          options.freqEnd,
+          options.progress ?? 0,
+          options.onProgress
         );
 
       default:
         // Return empty buffer for unknown styles
         const buffer = new AudioBuffer({
           numberOfChannels: 2,
-          length: Math.ceil(durationSeconds * this.sampleRate),
+          length: Math.ceil(options.durationSeconds * this.sampleRate),
           sampleRate: this.sampleRate,
         });
         return { buffer, notes: [] };

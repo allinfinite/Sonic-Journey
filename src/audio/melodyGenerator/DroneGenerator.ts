@@ -10,7 +10,6 @@ import type {
 } from '../../types/melodyGenerator';
 import { 
   DEFAULT_DRONE_SETTINGS, 
-  quantizeToScale,
   foundationToMelodyRoot,
   getScaleNotesInRange 
 } from '../../types/melodyGenerator';
@@ -54,7 +53,7 @@ export class DroneGenerator {
   async generate(
     durationSeconds: number,
     foundationFreq: number,
-    progress: number = 0,
+    _progress: number = 0,
     onProgress?: (progress: number) => void
   ): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
     const numSamples = Math.ceil(durationSeconds * this.sampleRate);
@@ -118,7 +117,6 @@ export class DroneGenerator {
 
     for (let i = 0; i < numSamples; i++) {
       const t = i / this.sampleRate;
-      const normalizedProgress = t / durationSeconds;
       
       // Amplitude envelope (fade in/out at boundaries)
       const fadeTime = 2; // seconds

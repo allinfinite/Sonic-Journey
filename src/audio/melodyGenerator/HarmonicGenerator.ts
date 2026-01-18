@@ -9,8 +9,7 @@ import type {
   MelodyNote 
 } from '../../types/melodyGenerator';
 import { 
-  DEFAULT_HARMONIC_SETTINGS,
-  foundationToMelodyRoot 
+  DEFAULT_HARMONIC_SETTINGS
 } from '../../types/melodyGenerator';
 
 export interface HarmonicGeneratorOptions {
@@ -54,7 +53,7 @@ export class HarmonicGenerator {
     durationSeconds: number,
     foundationFreq: number,
     freqEnd?: number,
-    progress: number = 0,
+    _progress: number = 0,
     onProgress?: (progress: number) => void
   ): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
     const numSamples = Math.ceil(durationSeconds * this.sampleRate);

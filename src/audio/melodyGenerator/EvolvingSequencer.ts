@@ -76,7 +76,7 @@ export class EvolvingSequencer {
     durationSeconds: number,
     foundationFreq: number,
     entrainmentMode: EntrainmentMode = 'breathing',
-    progress: number = 0,
+    _progress: number = 0,
     onProgress?: (progress: number) => void
   ): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
     const numSamples = Math.ceil(durationSeconds * this.sampleRate);
@@ -283,7 +283,6 @@ export class EvolvingSequencer {
 
         // Generate sample with slight FM for richness
         const fmAmount = 0.5;
-        const fmRate = note.frequency * 2;
         const fm = Math.sin(phase * 2) * fmAmount;
         const sample = Math.sin(phase + fm) * note.velocity * envelope;
         

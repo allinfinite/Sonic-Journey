@@ -6,8 +6,7 @@
 import type { 
   MelodyGeneratorConfig, 
   ArpeggioSettings, 
-  MelodyNote,
-  NoteDensity 
+  MelodyNote
 } from '../../types/melodyGenerator';
 import { 
   DEFAULT_ARPEGGIO_SETTINGS,
@@ -55,7 +54,7 @@ export class ArpeggioGenerator {
     durationSeconds: number,
     foundationFreq: number,
     entrainmentMode: EntrainmentMode = 'breathing',
-    progress: number = 0,
+    _progress: number = 0,
     onProgress?: (progress: number) => void
   ): Promise<{ buffer: AudioBuffer; notes: MelodyNote[] }> {
     const numSamples = Math.ceil(durationSeconds * this.sampleRate);
@@ -124,7 +123,7 @@ export class ArpeggioGenerator {
     }
 
     // Render notes to audio
-    this.renderNotes(notes, leftChannel, rightChannel, durationSeconds);
+    this.renderNotes(notes, leftChannel, rightChannel);
 
     if (onProgress) {
       onProgress(100);
@@ -137,7 +136,6 @@ export class ArpeggioGenerator {
    * Build arpeggio pattern from scale notes
    */
   private buildPattern(scaleNotes: number[]): number[] {
-    const pattern: number[] = [];
     const octaveNotes = this.getNotesWithOctaves(scaleNotes);
     
     switch (this.settings.pattern) {
@@ -200,8 +198,7 @@ export class ArpeggioGenerator {
   private renderNotes(
     notes: MelodyNote[],
     leftChannel: Float32Array,
-    rightChannel: Float32Array,
-    durationSeconds: number
+    rightChannel: Float32Array
   ): void {
     const twoPiOverSr = (2 * Math.PI) / this.sampleRate;
     

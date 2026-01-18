@@ -81,7 +81,6 @@ export class MelodyProcessor {
       volume = this.config.intensity,
     } = options;
 
-    const sourceDuration = this.uploadedBuffer.duration;
     const targetSamples = Math.ceil(targetDuration * this.sampleRate);
 
     // Create output buffer
