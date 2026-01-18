@@ -10,6 +10,8 @@ export { EvolvingSequencer, createEvolvingSequencer } from './EvolvingSequencer'
 export { HarmonicGenerator, createHarmonicGenerator } from './HarmonicGenerator';
 export { MelodyMixer, createMelodyMixer } from './MelodyMixer';
 export { MelodyProcessor, createMelodyProcessor } from './MelodyProcessor';
+export { EnhancedMelodyEngine, createEnhancedMelodyEngine } from './EnhancedMelodyEngine';
+export type { EnhancedMelodySettings } from './EnhancedMelodyEngine';
 
 // Types re-exported for convenience
 export type {
