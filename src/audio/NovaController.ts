@@ -182,6 +182,13 @@ export class NovaController {
       });
 
       this.addDebugLog('Nova connection complete!', 'success');
+      
+      // Wait a bit after connection before allowing commands
+      // The device might need time to initialize its internal state
+      this.addDebugLog('Waiting for device to be ready...', 'info');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      this.addDebugLog('Device ready for commands', 'success');
+      
       return true;
     } catch (error: any) {
       let errorMessage = 'Unknown error';
@@ -312,9 +319,9 @@ export class NovaController {
       await this.state.commandChar.writeValue(trigger);
       this.addDebugLog('Initial 01ff command sent successfully', 'success');
       
-      // Wait a small delay after initial command before starting interval
-      // This gives the device time to process the command
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer delay after initial command before starting interval
+      // The device might need time to process and accept the command
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Double-check device is still connected before starting interval
       if (!this.state.device?.gatt?.connected || !this.state.commandChar) {
