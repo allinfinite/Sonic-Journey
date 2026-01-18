@@ -35,6 +35,9 @@ export interface PhaseConfig {
   support_frequency?: FrequencyRange;
   nova_enabled?: boolean; // Enable Nova flicker for this phase
   nova_frequency?: number; // Override Nova frequency (Hz), otherwise auto-mapped from frequency/rhythm
+  binaural_enabled?: boolean; // Enable binaural beats for this phase
+  binaural_beat_frequency?: number; // Binaural beat frequency (Hz) - e.g., 3, 6, 10, 15 for Delta/Theta/Alpha/Beta
+  binaural_carrier_frequency?: number; // Carrier frequency (Hz) - default 200 Hz, range 100-400 Hz recommended
 }
 
 // Layer configuration

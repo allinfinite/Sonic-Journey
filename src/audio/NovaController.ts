@@ -93,7 +93,7 @@ export class NovaController {
    * Connect to Nova device
    */
   async connect(): Promise<boolean> {
-    if (!this.isAvailable()) {
+    if (!this.isAvailable() || !navigator.bluetooth) {
       throw new Error('Web Bluetooth is not available in this browser');
     }
 
@@ -216,7 +216,7 @@ export class NovaController {
 
     // Send 02ff to turn off light
     if (this.state.commandChar && this.state.isConnected) {
-      this.state.commandChar.writeValue(new Uint8Array([0x02, 0xff])).catch((error) => {
+      this.state.commandChar.writeValue(new Uint8Array([0x02, 0xff])).catch((error: unknown) => {
         console.error('Failed to turn off Nova:', error);
       });
     }

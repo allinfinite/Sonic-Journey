@@ -46,6 +46,21 @@ export class SynthEngine {
   private lfo: { osc: OscillatorNode | null; gain: GainNode | null } = { osc: null, gain: null };
   private fmLfo: { osc: OscillatorNode | null; gain: GainNode | null } = { osc: null, gain: null };
   private master: GainNode | null = null;
+  
+  // Binaural beats
+  private binaural: {
+    left: { osc: OscillatorNode | null; gain: GainNode | null; panner: StereoPannerNode | null };
+    right: { osc: OscillatorNode | null; gain: GainNode | null; panner: StereoPannerNode | null };
+    enabled: boolean;
+    beatFreq: number | null;
+    carrierFreq: number;
+  } = {
+    left: { osc: null, gain: null, panner: null },
+    right: { osc: null, gain: null, panner: null },
+    enabled: false,
+    beatFreq: null,
+    carrierFreq: 200, // Default carrier frequency
+  };
 
   // Current parameters
   private currentParams: AudioParams = {
@@ -168,12 +183,35 @@ export class SynthEngine {
     this.fmLfo.gain.connect(this.foundation.osc.frequency);
     this.fmLfo.gain.connect(this.harmony.osc.frequency);
 
+    // Binaural beats - left and right oscillators
+    this.binaural.left.osc = this.ctx.createOscillator();
+    this.binaural.left.osc.type = 'sine';
+    this.binaural.left.gain = this.ctx.createGain();
+    this.binaural.left.gain.gain.value = 0; // Start muted
+    this.binaural.left.panner = this.ctx.createStereoPanner();
+    this.binaural.left.panner.pan.value = -1; // Full left
+    this.binaural.left.osc.connect(this.binaural.left.gain);
+    this.binaural.left.gain.connect(this.binaural.left.panner);
+    this.binaural.left.panner.connect(this.master);
+
+    this.binaural.right.osc = this.ctx.createOscillator();
+    this.binaural.right.osc.type = 'sine';
+    this.binaural.right.gain = this.ctx.createGain();
+    this.binaural.right.gain.gain.value = 0; // Start muted
+    this.binaural.right.panner = this.ctx.createStereoPanner();
+    this.binaural.right.panner.pan.value = 1; // Full right
+    this.binaural.right.osc.connect(this.binaural.right.gain);
+    this.binaural.right.gain.connect(this.binaural.right.panner);
+    this.binaural.right.panner.connect(this.master);
+
     // Start all oscillators
     this.foundation.osc.start();
     this.harmony.osc.start();
     this.atmosphere.osc.start();
     this.lfo.osc.start();
     this.fmLfo.osc.start();
+    this.binaural.left.osc.start();
+    this.binaural.right.osc.start();
   }
 
   /**
@@ -253,6 +291,18 @@ export class SynthEngine {
     // Pause Nova flicker (but don't turn off light)
     novaController.stopFlicker();
 
+    // Pause binaural beats
+    if (this.binaural.enabled && this.ctx) {
+      const now = this.ctx.currentTime;
+      const rampTime = 0.3;
+      if (this.binaural.left.gain) {
+        this.binaural.left.gain.gain.setTargetAtTime(0, now, rampTime);
+      }
+      if (this.binaural.right.gain) {
+        this.binaural.right.gain.gain.setTargetAtTime(0, now, rampTime);
+      }
+    }
+
     this.onPlayStateChange?.(false);
   }
 
@@ -279,6 +329,20 @@ export class SynthEngine {
 
     // Stop Nova flicker
     novaController.stopFlicker();
+
+    // Stop binaural beats
+    if (this.binaural.enabled && this.ctx) {
+      const now = this.ctx.currentTime;
+      const rampTime = 0.3;
+      if (this.binaural.left.gain) {
+        this.binaural.left.gain.gain.setTargetAtTime(0, now, rampTime);
+      }
+      if (this.binaural.right.gain) {
+        this.binaural.right.gain.gain.setTargetAtTime(0, now, rampTime);
+      }
+      this.binaural.enabled = false;
+      this.binaural.beatFreq = null;
+    }
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
@@ -408,6 +472,12 @@ export class SynthEngine {
 
     // Notify phase change
     this.onPhaseChange?.(phaseIndex, phase);
+    
+    // Update Nova flicker if enabled
+    this.updateNovaFlicker(phase);
+    
+    // Update binaural beats if enabled
+    this.updateBinauralBeats(phase);
   }
 
   /**
@@ -523,6 +593,128 @@ export class SynthEngine {
           this.currentParams.layers = layers;
         }
         break;
+    }
+  }
+
+  /**
+   * Update Nova flicker based on current phase
+   */
+  private updateNovaFlicker(phase: PhaseConfig | null): void {
+    if (!phase || !this.journeyConfig) return;
+    
+    const novaState = novaController.getState();
+    if (!novaState.isConnected) return;
+    
+    // Check if Nova is enabled for journey and phase
+    const journeyNovaEnabled = this.journeyConfig.nova_enabled !== false;
+    const phaseNovaEnabled = phase.nova_enabled !== false;
+    
+    if (!journeyNovaEnabled || !phaseNovaEnabled) {
+      // Nova disabled for this phase, stop flicker
+      if (novaState.isFlickering) {
+        novaController.stopFlicker();
+      }
+      return;
+    }
+    
+    // Determine Nova frequency
+    let novaFreq: number;
+    if (phase.nova_frequency !== undefined) {
+      // Explicit frequency override
+      novaFreq = phase.nova_frequency;
+    } else if (phase.rhythm_mode) {
+      // Map from rhythm mode
+      novaFreq = mapRhythmModeToNova(phase.rhythm_mode);
+    } else {
+      // Map from audio frequency (average of start/end)
+      const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
+      novaFreq = mapFrequencyToNova(avgFreq);
+    }
+    
+    // Start or update flicker
+    if (!novaState.isFlickering || novaState.currentFrequency !== novaFreq) {
+      novaController.startFlicker(novaFreq);
+    }
+  }
+
+  /**
+   * Update binaural beats based on current phase
+   */
+  private updateBinauralBeats(phase: PhaseConfig | null): void {
+    if (!phase || !this.ctx) return;
+    
+    // Check if binaural beats are enabled for this phase
+    const binauralEnabled = phase.binaural_enabled === true;
+    
+    if (!binauralEnabled) {
+      // Disable binaural beats
+      if (this.binaural.enabled) {
+        const now = this.ctx.currentTime;
+        const rampTime = 0.3;
+        if (this.binaural.left.gain) {
+          this.binaural.left.gain.gain.setTargetAtTime(0, now, rampTime);
+        }
+        if (this.binaural.right.gain) {
+          this.binaural.right.gain.gain.setTargetAtTime(0, now, rampTime);
+        }
+        this.binaural.enabled = false;
+        this.binaural.beatFreq = null;
+      }
+      return;
+    }
+    
+    // Determine binaural beat frequency
+    let beatFreq: number;
+    if (phase.binaural_beat_frequency !== undefined) {
+      beatFreq = phase.binaural_beat_frequency;
+    } else if (phase.rhythm_mode === 'theta') {
+      beatFreq = 6; // Theta
+    } else if (phase.rhythm_mode === 'alpha') {
+      beatFreq = 10; // Alpha
+    } else {
+      // Map from audio frequency (average of start/end)
+      const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
+      if (avgFreq <= 4) beatFreq = 3;      // Delta
+      else if (avgFreq <= 7) beatFreq = 6; // Theta
+      else if (avgFreq <= 12) beatFreq = 10; // Alpha
+      else if (avgFreq <= 30) beatFreq = 15; // Beta
+      else beatFreq = 10; // Default to Alpha
+    }
+    
+    // Carrier frequency (default 200 Hz, optimal range 100-400 Hz)
+    const carrierFreq = phase.binaural_carrier_frequency || 200;
+    
+    // Calculate left and right frequencies
+    // Left: carrier - beatFreq/2, Right: carrier + beatFreq/2
+    const leftFreq = carrierFreq - beatFreq / 2;
+    const rightFreq = carrierFreq + beatFreq / 2;
+    
+    const now = this.ctx.currentTime;
+    const rampTime = 0.5;
+    
+    // Update frequencies if changed
+    if (!this.binaural.enabled || this.binaural.beatFreq !== beatFreq || this.binaural.carrierFreq !== carrierFreq) {
+      if (this.binaural.left.osc) {
+        this.binaural.left.osc.frequency.setTargetAtTime(leftFreq, now, rampTime);
+      }
+      if (this.binaural.right.osc) {
+        this.binaural.right.osc.frequency.setTargetAtTime(rightFreq, now, rampTime);
+      }
+      
+      this.binaural.beatFreq = beatFreq;
+      this.binaural.carrierFreq = carrierFreq;
+    }
+    
+    // Enable binaural beats (fade in)
+    if (!this.binaural.enabled) {
+      const binauralVolume = 0.3; // 30% volume for binaural beats (subtle background)
+      if (this.binaural.left.gain) {
+        this.binaural.left.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
+      }
+      if (this.binaural.right.gain) {
+        this.binaural.right.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
+      }
+      this.binaural.enabled = true;
     }
   }
 
