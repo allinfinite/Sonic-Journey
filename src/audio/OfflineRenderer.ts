@@ -10,6 +10,10 @@ import { Envelope } from './Envelope';
 import { SafetyProcessor } from './SafetyProcessor';
 import type { MelodyStyle, MelodyScale, NoteDensity } from '../types/melodyGenerator';
 import { getScaleNotesInRange, foundationToMelodyRoot, DENSITY_MULTIPLIERS } from '../types/melodyGenerator';
+import { createHarmonicEnricher } from './HarmonicEnricher';
+import { createEffectsChain } from './EffectsChain';
+import { createSpatialProcessor } from './SpatialProcessor';
+import { createSpectralProcessor } from './SpectralProcessor';
 
 // Map rhythm mode to entrainment mode
 const rhythmToEntrainment: Record<string, EntrainmentMode> = {
@@ -264,7 +268,112 @@ export class OfflineRenderer {
       }
     }
 
+    // Apply psychedelic audio enhancement if enabled
+    const hasEnhancements = 
+      phase.harmonic_richness !== undefined ||
+      phase.effects_intensity !== undefined ||
+      phase.spatial_width !== undefined ||
+      phase.warmth !== undefined;
+
+    if (hasEnhancements) {
+      const enhanced = this.applyPsychedelicProcessing(
+        mixed,
+        phase,
+        phase.frequency.start,
+        phase.frequency.end
+      );
+      for (let i = 0; i < samples; i++) {
+        mixed[i] = enhanced[i];
+      }
+    }
+
     return mixed;
+  }
+
+  /**
+   * Apply psychedelic audio enhancement processing
+   */
+  private applyPsychedelicProcessing(
+    input: Float32Array,
+    phase: PhaseConfig,
+    freqStart: number,
+    freqEnd: number
+  ): Float32Array {
+    let output = new Float32Array(input);
+    
+    const harmonicRichness = phase.harmonic_richness ?? 0;
+    const effectsIntensity = phase.effects_intensity ?? 0;
+    const spatialWidth = phase.spatial_width ?? 0;
+    const warmth = phase.warmth ?? 0;
+
+    // Apply harmonic enrichment
+    if (harmonicRichness > 0.1) {
+      const enricher = createHarmonicEnricher(this.sampleRate, {
+        harmonicCount: Math.floor(3 + harmonicRichness * 4),
+        evenHarmonicLevel: 0.3 + harmonicRichness * 0.4,
+        oddHarmonicLevel: 0.4 + harmonicRichness * 0.4,
+        warmth: warmth,
+        dryWet: harmonicRichness * 0.5,
+      });
+      const enriched = enricher.processOffline(output, freqStart, freqEnd);
+      output.set(enriched);
+    }
+
+    // Apply effects chain
+    if (effectsIntensity > 0.1) {
+      const effects = createEffectsChain({
+        phaserEnabled: true,
+        phaserRate: 0.2 + effectsIntensity * 0.2,
+        phaserDepth: effectsIntensity * 0.6,
+        filterEnabled: true,
+        filterLfoRate: 0.05 + effectsIntensity * 0.1,
+        filterLfoDepth: effectsIntensity * 0.3,
+        saturationEnabled: warmth > 0.2,
+        saturationAmount: warmth * 0.4,
+        tremoloEnabled: false,
+        autoPanEnabled: false,
+        dryWet: effectsIntensity * 0.4,
+      });
+      const processed = effects.processOffline(output, this.sampleRate);
+      output.set(processed);
+    }
+
+    // Apply spectral processing
+    if (harmonicRichness > 0.2 || warmth > 0.2) {
+      const spectral = createSpectralProcessor(this.sampleRate, {
+        subBand: { enabled: true, gain: 2, compression: 0, saturation: warmth * 0.1 },
+        bassBand: { enabled: true, gain: 1, compression: 0, saturation: warmth * 0.15 },
+        lowMidBand: { enabled: true, gain: 0, compression: 0, saturation: 0 },
+        highMidBand: { enabled: true, gain: 0, compression: 0, saturation: 0 },
+        highBand: { enabled: true, gain: 1, compression: 0, saturation: 0 },
+        airBand: { enabled: true, gain: 2, compression: 0, saturation: 0 },
+        exciterEnabled: harmonicRichness > 0.3,
+        exciterAmount: harmonicRichness * 0.3,
+      });
+      const spectralProcessed = spectral.processOffline(output);
+      output.set(spectralProcessed);
+    }
+
+    // Apply spatial processing (mono to stereo widening effect approximation)
+    if (spatialWidth > 0.2) {
+      const spatial = createSpatialProcessor(this.sampleRate, {
+        reverbEnabled: true,
+        reverbDecay: 2 + spatialWidth * 3,
+        reverbDryWet: spatialWidth * 0.4,
+        stereoWidthEnabled: false, // Mono rendering
+        autoPanEnabled: false,
+        distanceEnabled: true,
+        distance: spatialWidth * 0.3,
+      });
+      // Process as stereo (duplicate mono to both channels)
+      const stereoResult = spatial.processOffline(output, new Float32Array(output));
+      // Mix back to mono
+      for (let i = 0; i < output.length; i++) {
+        output[i] = (stereoResult.left[i] + stereoResult.right[i]) * 0.5;
+      }
+    }
+
+    return output;
   }
 
   /**

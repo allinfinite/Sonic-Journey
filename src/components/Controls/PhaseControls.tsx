@@ -81,6 +81,10 @@ function getPatternDescription(pattern: NovaPattern | undefined, rhythmMode?: Rh
   }
 }
 
+import { useState } from 'react';
+
+type ExpandedSection = 'enhancement' | null;
+
 export function PhaseControls() {
   const {
     journey,
@@ -89,6 +93,8 @@ export function PhaseControls() {
     updateLiveParameter,
     isPlaying,
   } = useJourneyStore();
+  
+  const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
 
   const phase = journey.phases[selectedPhaseIndex];
   if (!phase) return null;
@@ -772,6 +778,197 @@ export function PhaseControls() {
         {phase.melody_enabled !== false && journey.layers?.melody_layer !== true && (
           <div className="pl-6 text-xs text-[var(--color-text-muted)] italic">
             Enable "Melody" layer globally to use
+          </div>
+        )}
+      </div>
+
+      {/* Audio Enhancement Section */}
+      <div className="space-y-2 pt-2 border-t border-[var(--color-surface-light)]">
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-[var(--color-text-muted)] flex items-center gap-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3v18m-6-9h12M6 8l6-5 6 5M6 16l6 5 6-5" />
+            </svg>
+            Audio Enhancement
+          </label>
+          <button
+            onClick={() => setExpandedSection(expandedSection === 'enhancement' ? null : 'enhancement')}
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          >
+            <svg className={`w-4 h-4 transition-transform ${expandedSection === 'enhancement' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+        
+        {expandedSection === 'enhancement' && (
+          <div className="pl-6 space-y-3 animate-fadeIn">
+            {/* Harmonic Richness */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Harmonic Richness</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.harmonic_richness ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.harmonic_richness ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { harmonic_richness: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">Adds overtones and harmonic content</div>
+            </div>
+
+            {/* Effects Intensity */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Effects Intensity</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.effects_intensity ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.effects_intensity ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { effects_intensity: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">Phaser, filter modulation, saturation</div>
+            </div>
+
+            {/* Spatial Width */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Spatial Width</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.spatial_width ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.spatial_width ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { spatial_width: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">Reverb, stereo width, auto-pan</div>
+            </div>
+
+            {/* Modulation Depth */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Modulation Depth</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.modulation_depth ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.modulation_depth ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { modulation_depth: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">LFO movement and variation</div>
+            </div>
+
+            {/* Timbre Evolution */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Timbre Evolution</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.timbre_evolution ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.timbre_evolution ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { timbre_evolution: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">Waveform morphing and spectral change</div>
+            </div>
+
+            {/* Warmth */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Warmth</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.warmth ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={(phase.warmth ?? 0) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { warmth: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+              />
+              <div className="text-xs text-[var(--color-text-muted)]">Analog saturation and color</div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="space-y-1 pt-2 border-t border-[var(--color-surface-light)]/50">
+              <label className="text-xs text-[var(--color-text-muted)]">Quick Presets</label>
+              <div className="grid grid-cols-4 gap-1">
+                <button
+                  onClick={() => updatePhase(selectedPhaseIndex, {
+                    harmonic_richness: 0.3,
+                    effects_intensity: 0.2,
+                    spatial_width: 0.3,
+                    modulation_depth: 0.2,
+                    timbre_evolution: 0.15,
+                    warmth: 0.2,
+                  })}
+                  className="px-2 py-1 rounded text-xs font-medium bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  Subtle
+                </button>
+                <button
+                  onClick={() => updatePhase(selectedPhaseIndex, {
+                    harmonic_richness: 0.5,
+                    effects_intensity: 0.4,
+                    spatial_width: 0.5,
+                    modulation_depth: 0.4,
+                    timbre_evolution: 0.3,
+                    warmth: 0.35,
+                  })}
+                  className="px-2 py-1 rounded text-xs font-medium bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  Balanced
+                </button>
+                <button
+                  onClick={() => updatePhase(selectedPhaseIndex, {
+                    harmonic_richness: 0.7,
+                    effects_intensity: 0.6,
+                    spatial_width: 0.8,
+                    modulation_depth: 0.7,
+                    timbre_evolution: 0.6,
+                    warmth: 0.4,
+                  })}
+                  className="px-2 py-1 rounded text-xs font-medium bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  Deep
+                </button>
+                <button
+                  onClick={() => updatePhase(selectedPhaseIndex, {
+                    harmonic_richness: 0,
+                    effects_intensity: 0,
+                    spatial_width: 0,
+                    modulation_depth: 0,
+                    timbre_evolution: 0,
+                    warmth: 0,
+                  })}
+                  className="px-2 py-1 rounded text-xs font-medium bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  Off
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

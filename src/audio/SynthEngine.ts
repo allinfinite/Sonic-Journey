@@ -9,6 +9,7 @@ import { novaController, getNovaFrequencyForPhase } from './NovaController';
 import type { MelodyStyle, MelodyScale, NoteDensity, MelodyGeneratorConfig } from '../types/melodyGenerator';
 import { foundationToMelodyRoot } from '../types/melodyGenerator';
 import { createEnhancedMelodyEngine } from './melodyGenerator/EnhancedMelodyEngine';
+import { createPsychedelicEngine, type PsychedelicEngine, type EnhancementPreset } from './PsychedelicEngine';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
@@ -86,6 +87,10 @@ export class SynthEngine {
     density: 'moderate',
     currentPhase: null,
   };
+
+  // Psychedelic audio enhancement engine
+  private psychedelicEngine: PsychedelicEngine | null = null;
+  private psychedelicEngineInitialized = false;
 
   // Current parameters
   private currentParams: AudioParams = {
@@ -531,6 +536,11 @@ export class SynthEngine {
     
     // Update melody layer if enabled (async, fire-and-forget)
     this.updateMelody(phase, freq, entrainmentMode).catch(() => {
+      // Silently handle errors
+    });
+    
+    // Update psychedelic audio enhancement
+    this.updatePsychedelicEngine(phase, freq).catch(() => {
       // Silently handle errors
     });
   }
@@ -1092,12 +1102,114 @@ export class SynthEngine {
     this.melody.currentPhase = phase;
   }
 
+  /**
+   * Update psychedelic audio enhancement based on phase settings
+   */
+  private async updatePsychedelicEngine(phase: PhaseConfig | null, foundationFreq: number): Promise<void> {
+    if (!phase || !this.ctx) return;
+
+    // Check if any enhancement is enabled for this phase
+    const hasEnhancements = 
+      phase.harmonic_richness !== undefined ||
+      phase.effects_intensity !== undefined ||
+      phase.spatial_width !== undefined ||
+      phase.modulation_depth !== undefined ||
+      phase.timbre_evolution !== undefined ||
+      phase.warmth !== undefined;
+
+    // Use defaults if no specific settings
+    const harmonicRichness = phase.harmonic_richness ?? 0.4;
+    const effectsIntensity = phase.effects_intensity ?? 0.3;
+    const spatialWidth = phase.spatial_width ?? 0.4;
+    const modulationDepth = phase.modulation_depth ?? 0.3;
+    const timbreEvolution = phase.timbre_evolution ?? 0.2;
+    const warmth = phase.warmth ?? 0.3;
+
+    // Determine preset based on rhythm mode
+    let preset: EnhancementPreset = 'therapeutic';
+    if (phase.rhythm_mode === 'theta' || phase.rhythm_mode === 'delta') {
+      preset = 'meditative';
+    } else if (phase.rhythm_mode === 'alpha') {
+      preset = 'psychedelic';
+    } else if (phase.rhythm_mode === 'beta' || phase.rhythm_mode === 'gamma') {
+      preset = 'dynamic';
+    }
+
+    // Initialize engine if needed
+    if (!this.psychedelicEngineInitialized) {
+      this.psychedelicEngine = createPsychedelicEngine(this.ctx.sampleRate, {
+        preset,
+        enabled: true,
+        masterMix: 0.4,
+        harmonicRichness,
+        effectsIntensity,
+        spatialWidth,
+        modulationDepth,
+        timbreEvolution,
+        warmth,
+      });
+
+      try {
+        await this.psychedelicEngine.initialize();
+        
+        // Connect to master output (parallel with existing audio)
+        // The engine will process audio routed to it
+        if (this.master) {
+          // Create a gain node to send signal to psychedelic engine
+          const sendGain = this.ctx.createGain();
+          sendGain.gain.value = 0.5;
+          
+          // Connect foundation to send (for processing)
+          if (this.foundation.gain) {
+            this.foundation.gain.connect(sendGain);
+          }
+          if (this.harmony.gain) {
+            this.harmony.gain.connect(sendGain);
+          }
+        }
+        
+        this.psychedelicEngineInitialized = true;
+      } catch (error) {
+        console.error('Failed to initialize psychedelic engine:', error);
+        return;
+      }
+    }
+
+    // Update engine settings based on phase
+    if (this.psychedelicEngine) {
+      this.psychedelicEngine.updateSettings({
+        preset: hasEnhancements ? 'custom' : preset,
+        harmonicRichness,
+        effectsIntensity,
+        spatialWidth,
+        modulationDepth,
+        timbreEvolution,
+        warmth,
+      });
+
+      // Update frequency for harmonic generation
+      this.psychedelicEngine.setFrequency(foundationFreq);
+    }
+  }
 
   /**
    * Clean up resources
    */
   dispose(): void {
     this.stop();
+
+    // Dispose psychedelic engine
+    if (this.psychedelicEngine) {
+      this.psychedelicEngine.dispose();
+      this.psychedelicEngine = null;
+      this.psychedelicEngineInitialized = false;
+    }
+
+    // Dispose melody engine
+    if (this.melody.enhancedEngine) {
+      this.melody.enhancedEngine.dispose();
+      this.melody.enhancedEngine = null;
+    }
 
     if (this.ctx) {
       this.ctx.close();

@@ -132,6 +132,14 @@ export interface PhaseConfig {
   melody_scale?: MelodyScale; // Musical scale for melody
   melody_intensity?: number; // Melody volume (0-1)
   melody_density?: NoteDensity; // Note density (sparse, moderate, dense)
+  
+  // Audio enhancement settings
+  harmonic_richness?: number;      // 0-1, amount of harmonic content added
+  effects_intensity?: number;      // 0-1, overall effects level
+  spatial_width?: number;          // 0-1, stereo width and reverb depth
+  modulation_depth?: number;       // 0-1, LFO modulation amount
+  timbre_evolution?: number;       // 0-1, rate of timbre morphing
+  warmth?: number;                 // 0-1, analog warmth/saturation
 }
 
 // Layer configuration

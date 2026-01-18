@@ -359,7 +359,8 @@ export class EffectsChain {
     let flangerPhase = 0;
     let filterLfoPhase = 0;
     let tremoloPhase = 0;
-    let autoPanPhase = 0;
+    // Note: autoPan is handled by Tone.js in real-time mode, this is mono offline processing
+    void 0; // autoPan placeholder
     
     // Delay buffer for flanger
     const flangerBufferSize = Math.ceil(sampleRate * 0.02);
@@ -371,7 +372,6 @@ export class EffectsChain {
     let filterY2 = 0;
     
     for (let i = 0; i < input.length; i++) {
-      const t = i / sampleRate;
       let sample = input[i];
       let drySample = sample * (1 - this.settings.dryWet);
       let wetSample = sample;
