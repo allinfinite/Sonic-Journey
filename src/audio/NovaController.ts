@@ -319,16 +319,8 @@ export class NovaController {
       await this.state.commandChar.writeValue(trigger);
       this.addDebugLog('Initial 01ff command sent successfully', 'success');
       
-      // Wait longer delay after initial command before starting interval
-      // The device might need time to process and accept the command
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Double-check device is still connected before starting interval
-      if (!this.state.device?.gatt?.connected || !this.state.commandChar) {
-        this.addDebugLog('Device disconnected after initial command', 'error');
-        this.isStartingFlicker = false;
-        return false;
-      }
+      // Match ble-web.html behavior: start interval immediately after initial command
+      // No delay needed - device accepts commands immediately
     } catch (error) {
       this.addDebugLog(`Initial flicker command error: ${error}`, 'error');
       // Check if device disconnected due to the error
