@@ -632,7 +632,15 @@ export class SynthEngine {
     }
     
     // Start or update flicker
+    // Only call startFlicker if frequency changed or flicker not running
     if (!novaState.isFlickering || novaState.currentFrequency !== novaFreq) {
+      // Double-check connection state before attempting to start flicker
+      const currentState = novaController.getState();
+      if (!currentState.isConnected) {
+        // Device disconnected, skip flicker update
+        return;
+      }
+
       try {
         const success = novaController.startFlicker(novaFreq);
         if (!success) {
@@ -644,6 +652,7 @@ export class SynthEngine {
         // Catch any unexpected errors and log them
         console.error('Error starting Nova flicker:', error);
         // Don't throw - allow playback to continue
+        // Don't disconnect on error - might be transient
       }
     }
   }

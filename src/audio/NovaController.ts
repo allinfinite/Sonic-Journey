@@ -66,6 +66,7 @@ export class NovaController {
 
   private flickerInterval: ReturnType<typeof setInterval> | null = null;
   private onStateChange?: (state: NovaState) => void;
+  private isStartingFlicker = false; // Guard against concurrent startFlicker calls
 
   /**
    * Set callback for state changes
@@ -181,17 +182,38 @@ export class NovaController {
    * Returns false if device is not connected, true on success
    */
   startFlicker(frequencyHz: number): boolean {
-    if (!this.state.isConnected || !this.state.commandChar) {
-      console.warn('Nova device not connected, cannot start flicker');
+    // Guard against concurrent calls
+    if (this.isStartingFlicker) {
+      console.warn('Nova flicker start already in progress, skipping');
       return false;
     }
 
-    // Verify device is still connected
-    if (!this.state.device?.gatt?.connected) {
-      console.warn('Nova device connection lost');
-      this.handleDisconnect();
+    // First check state flags
+    if (!this.state.isConnected || !this.state.commandChar) {
+      console.warn('Nova device not connected (state check), cannot start flicker');
       return false;
     }
+
+    // Then verify actual device connection
+    if (!this.state.device?.gatt?.connected) {
+      console.warn('Nova device connection lost (GATT check)');
+      // Don't call handleDisconnect here - it might already be disconnected
+      // Just update state silently
+      this.updateState({
+        isConnected: false,
+        isFlickering: false,
+        currentFrequency: null,
+      });
+      return false;
+    }
+
+    // Double-check commandChar is still valid
+    if (!this.state.commandChar) {
+      console.warn('Nova command characteristic not available');
+      return false;
+    }
+
+    this.isStartingFlicker = true;
 
     // Stop any existing flicker
     this.stopFlicker();
@@ -221,6 +243,7 @@ export class NovaController {
     } catch (error) {
       console.error('Nova initial flicker command error:', error);
       // Don't disconnect on initial command error - might be transient
+      this.isStartingFlicker = false;
       return false;
     }
 
@@ -258,6 +281,7 @@ export class NovaController {
       currentFrequency: frequencyHz,
     });
 
+    this.isStartingFlicker = false;
     return true;
   }
 
