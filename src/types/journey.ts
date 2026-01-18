@@ -3,10 +3,16 @@
  */
 
 // Entrainment/rhythm modes for therapeutic pulsing
-export type EntrainmentMode = 'none' | 'breathing' | 'heartbeat' | 'delta' | 'theta' | 'alpha';
+// Based on neural entrainment research:
+// - Delta (1-4 Hz): Deep sleep, relaxation, trance
+// - Theta (4-7 Hz): Meditation, hypnagogic states, creativity
+// - Alpha (8-12 Hz): Vivid visuals, calm alertness, flow states
+// - Beta (13-30 Hz): Focus, alertness, mental energy
+// - Gamma (30-50 Hz): Cognitive enhancement, memory (40 Hz research)
+export type EntrainmentMode = 'none' | 'breathing' | 'heartbeat' | 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma';
 
-// Rhythm mode (user-friendly alias)
-export type RhythmMode = 'still' | 'breathing' | 'heartbeat' | 'theta' | 'alpha';
+// Rhythm mode (user-friendly alias for entrainment bands)
+export type RhythmMode = 'still' | 'breathing' | 'heartbeat' | 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma';
 
 // Frequency range type
 export interface FrequencyRange {
@@ -103,13 +109,17 @@ export interface EntrainmentPreset {
   depth: number;
 }
 
+// Entrainment presets based on neuroscience research
+// Rate = Hz for neural entrainment, depth = modulation intensity
 export const ENTRAINMENT_PRESETS: Record<EntrainmentMode, EntrainmentPreset> = {
   none: { rate: 0, depth: 0 },
-  breathing: { rate: 0.083, depth: 0.15 }, // ~12 sec cycle
-  heartbeat: { rate: 1.0, depth: 0.25 },   // ~60 BPM
-  delta: { rate: 2.0, depth: 0.2 },        // 2 Hz - deep sleep
-  theta: { rate: 5.0, depth: 0.25 },       // 5 Hz - meditation
-  alpha: { rate: 10.0, depth: 0.2 },       // 10 Hz - relaxation
+  breathing: { rate: 0.083, depth: 0.15 }, // ~12 sec cycle (0.083 Hz)
+  heartbeat: { rate: 1.0, depth: 0.25 },   // ~60 BPM (1 Hz)
+  delta: { rate: 3.0, depth: 0.2 },        // 3 Hz - deep sleep, trance, drowsy states
+  theta: { rate: 6.0, depth: 0.25 },       // 6 Hz - meditation, hypnagogic, creative
+  alpha: { rate: 10.0, depth: 0.2 },       // 10 Hz - vivid visuals, flow states, calm alertness
+  beta: { rate: 15.0, depth: 0.15 },       // 15 Hz - focus, alertness, mental energy
+  gamma: { rate: 40.0, depth: 0.1 },       // 40 Hz - cognitive enhancement, memory research
 };
 
 // Energy level mapping (user-friendly frequency ranges)

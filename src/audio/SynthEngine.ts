@@ -5,15 +5,18 @@
 
 import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode } from '../types/journey';
 import { ENTRAINMENT_PRESETS } from '../types/journey';
-import { novaController, mapFrequencyToNova, mapRhythmModeToNova } from './NovaController';
+import { novaController, getNovaFrequencyForPhase } from './NovaController';
 
-// Map rhythm mode to entrainment mode
+// Map rhythm mode to entrainment mode (neural frequency bands)
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
   still: 'none',
   breathing: 'breathing',
   heartbeat: 'heartbeat',
-  theta: 'theta',
-  alpha: 'alpha',
+  delta: 'delta',     // 1-4 Hz - deep sleep, trance
+  theta: 'theta',     // 4-7 Hz - meditation, hypnagogic
+  alpha: 'alpha',     // 8-12 Hz - visuals, flow states
+  beta: 'beta',       // 13-30 Hz - focus, alertness
+  gamma: 'gamma',     // 30-50 Hz - cognitive enhancement
 };
 
 export class SynthEngine {
@@ -603,7 +606,14 @@ export class SynthEngine {
   }
 
   /**
-   * Update Nova flicker based on current phase
+   * Update Nova flicker based on current phase and progress
+   * Uses neural entrainment frequency bands for synchronized brain stimulation
+   * 
+   * Priority for frequency selection:
+   * 1. Explicit nova_frequency override
+   * 2. entrainment_rate (exact Hz from preset)
+   * 3. rhythm_mode/entrainment_mode (band mapping)
+   * 4. Interpolated from frequency range based on phase progress
    */
   private updateNovaFlicker(phase: PhaseConfig | null): void {
     if (!phase || !this.journeyConfig) return;
@@ -623,37 +633,42 @@ export class SynthEngine {
       return;
     }
     
-    // Determine Nova frequency
-    let novaFreq: number;
-    if (phase.nova_frequency !== undefined) {
-      // Explicit frequency override
-      novaFreq = phase.nova_frequency;
-    } else if (phase.rhythm_mode) {
-      // Map from rhythm mode
-      novaFreq = mapRhythmModeToNova(phase.rhythm_mode);
-    } else {
-      // Map from audio frequency (average of start/end)
-      const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
-      novaFreq = mapFrequencyToNova(avgFreq);
+    // Get current phase progress for smooth ramping
+    const { progress } = this.getCurrentPhase();
+    
+    // Get optimal Nova frequency using the smart mapping function
+    // This considers: nova_frequency > entrainment_rate > rhythm_mode > frequency ramping
+    const novaFreq = getNovaFrequencyForPhase({
+      nova_frequency: phase.nova_frequency,
+      entrainment_rate: phase.entrainment_rate,
+      rhythm_mode: phase.rhythm_mode,
+      entrainment_mode: phase.entrainment_mode,
+      frequency: phase.frequency,
+    }, progress);
+    
+    // Skip if frequency is 0 (no flicker mode)
+    if (novaFreq <= 0) {
+      if (novaState.isFlickering) {
+        novaController.stopFlicker();
+      }
+      return;
     }
     
     // Start or update flicker
-    // Only call startFlicker if frequency changed or flicker not running
-    if (!novaState.isFlickering || novaState.currentFrequency !== novaFreq) {
+    // Only call startFlicker if frequency changed significantly (>0.5 Hz) or flicker not running
+    const freqChanged = novaState.currentFrequency === null || 
+                        Math.abs(novaState.currentFrequency - novaFreq) > 0.5;
+    
+    if (!novaState.isFlickering || freqChanged) {
       // Double-check connection state before attempting to start flicker
       const currentState = novaController.getState();
       if (!currentState.isConnected) {
-        // Device disconnected, skip flicker update
         return;
       }
 
       // Call startFlicker asynchronously (don't await - let it run in background)
-      // This prevents blocking the update loop
       novaController.startFlicker(novaFreq).catch((error) => {
-        // Catch any errors and log them
         console.error('Error starting Nova flicker:', error);
-        // Don't throw - allow playback to continue
-        // Don't disconnect on error - might be transient
       });
     }
   }
@@ -684,22 +699,38 @@ export class SynthEngine {
       return;
     }
     
-    // Determine binaural beat frequency
+    // Determine binaural beat frequency using entrainment science
+    // Priority: binaural_beat_frequency > entrainment_rate > rhythm_mode > frequency range
     let beatFreq: number;
-    if (phase.binaural_beat_frequency !== undefined) {
+    
+    if (phase.binaural_beat_frequency !== undefined && phase.binaural_beat_frequency > 0) {
+      // 1. Explicit binaural beat frequency
       beatFreq = phase.binaural_beat_frequency;
-    } else if (phase.rhythm_mode === 'theta') {
-      beatFreq = 6; // Theta
-    } else if (phase.rhythm_mode === 'alpha') {
-      beatFreq = 10; // Alpha
+    } else if (phase.entrainment_rate !== undefined && phase.entrainment_rate > 0) {
+      // 2. Use entrainment_rate (exact Hz from preset) - capped at 30 Hz for binaural
+      beatFreq = Math.min(30, phase.entrainment_rate);
+    } else if (phase.rhythm_mode || phase.entrainment_mode) {
+      // 3. Map from rhythm_mode/entrainment_mode
+      const mode = phase.rhythm_mode || phase.entrainment_mode;
+      switch (mode) {
+        case 'delta': beatFreq = 3; break;    // Delta: deep sleep, trance
+        case 'theta': beatFreq = 6; break;    // Theta: meditation, hypnagogic
+        case 'alpha': beatFreq = 10; break;   // Alpha: visuals, flow states
+        case 'beta': beatFreq = 15; break;    // Beta: focus, alertness
+        case 'gamma': beatFreq = 30; break;   // Gamma: cognitive (capped for binaural)
+        case 'breathing': beatFreq = 10; break; // Alpha for calm breathing
+        case 'heartbeat': beatFreq = 10; break; // Alpha for grounded rhythm
+        default: beatFreq = 10; break;        // Default to alpha
+      }
     } else {
-      // Map from audio frequency (average of start/end)
-      const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
-      if (avgFreq <= 4) beatFreq = 3;      // Delta
-      else if (avgFreq <= 7) beatFreq = 6; // Theta
-      else if (avgFreq <= 12) beatFreq = 10; // Alpha
-      else if (avgFreq <= 30) beatFreq = 15; // Beta
-      else beatFreq = 10; // Default to Alpha
+      // 4. Map from audio frequency range with progress interpolation
+      const { progress } = this.getCurrentPhase();
+      const interpolatedFreq = phase.frequency.start + (phase.frequency.end - phase.frequency.start) * progress;
+      if (interpolatedFreq <= 4) beatFreq = 3;        // Delta
+      else if (interpolatedFreq <= 7) beatFreq = 6;   // Theta
+      else if (interpolatedFreq <= 12) beatFreq = 10; // Alpha
+      else if (interpolatedFreq <= 30) beatFreq = 15; // Beta
+      else beatFreq = 10;                              // Default to Alpha
     }
     
     // Carrier frequency (default 200 Hz, optimal range 100-400 Hz)

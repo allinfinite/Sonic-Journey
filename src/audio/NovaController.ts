@@ -7,44 +7,115 @@
 const CONTROL_SERVICE = '47bbfb1e-670e-4f81-bfb3-78daffc9a783';
 const COMMAND_CHAR = '3e25a3bf-bfe1-4c71-97c5-5bdb73fac89e';
 
-// Frequency band mappings based on neuroscience research
+/**
+ * Nova Flicker Frequency Bands - Based on Neural Entrainment Research
+ * 
+ * The frequency of light flashes determines neural entrainment effects:
+ * - Delta (1-4 Hz): Deep relaxation, sleep onset, trance states
+ * - Theta (4-7 Hz): Meditative, hypnagogic, creative/dreamlike states
+ * - Alpha (8-12 Hz): Vivid closed-eye visuals, calm alertness, flow states
+ * - Beta (13-30 Hz): Alertness, focus, mental energy
+ * - Gamma (30-50+ Hz): Cognitive enhancement, memory (40 Hz research)
+ * 
+ * Key findings:
+ * - Rhythmic, periodic flashes produce stronger entrainment than random
+ * - 10 Hz is the "sweet spot" for kaleidoscopic visual experiences
+ * - Frequencies above 20 Hz can be uncomfortable with weaker visuals
+ * - 40 Hz is researched for cognitive enhancement (Alzheimer's studies)
+ */
 export const NOVA_FREQUENCY_MAP: Record<string, number> = {
-  // Delta (1-4 Hz) - Deep sleep, relaxation
+  // Delta (1-4 Hz) - Deep sleep, relaxation, trance
   delta: 3,
-  // Theta (4-7 Hz) - Meditation, hypnagogic states
+  // Theta (4-7 Hz) - Meditation, hypnagogic states, creativity
   theta: 6,
-  // Alpha (8-12 Hz) - Vivid visuals, flow states
+  // Alpha (8-12 Hz) - Vivid visuals, flow states (sweet spot)
   alpha: 10,
-  // Beta (13-30 Hz) - Alertness, focus
+  // Beta (13-30 Hz) - Alertness, focus, mental energy
   beta: 15,
-  // Default fallback
+  // Gamma (30-50 Hz) - Cognitive enhancement, 40 Hz research
+  gamma: 40,
+  // Default fallback - alpha for best visual experience
   default: 10,
 };
 
 /**
  * Map journey frequency (Hz) to Nova flicker frequency
- * Based on neuroscience: frequency bands determine neural entrainment effects
+ * Uses the audio/entrainment frequency to select appropriate brain state
  */
-export function mapFrequencyToNova(audioFreq: number): number {
-  if (audioFreq <= 4) return NOVA_FREQUENCY_MAP.delta;      // Delta: deep sleep
-  if (audioFreq <= 7) return NOVA_FREQUENCY_MAP.theta;     // Theta: meditation
-  if (audioFreq <= 12) return NOVA_FREQUENCY_MAP.alpha;     // Alpha: visuals
-  if (audioFreq <= 30) return NOVA_FREQUENCY_MAP.beta;     // Beta: focus
+export function mapFrequencyToNova(freq: number): number {
+  // Direct frequency mapping based on entrainment bands
+  if (freq <= 4) return Math.max(1, Math.round(freq));     // Delta: use actual frequency (1-4 Hz)
+  if (freq <= 7) return Math.round(freq);                   // Theta: use actual frequency (4-7 Hz)  
+  if (freq <= 12) return Math.round(freq);                  // Alpha: use actual frequency (8-12 Hz)
+  if (freq <= 30) return Math.min(20, Math.round(freq));    // Beta: cap at 20 Hz for comfort
+  if (freq <= 50) return 40;                                // Gamma: use 40 Hz (research optimal)
   return NOVA_FREQUENCY_MAP.default;                        // Default: alpha
 }
 
 /**
- * Map rhythm mode to Nova frequency
+ * Map rhythm/entrainment mode to Nova frequency
+ * Uses the brain state name to get optimal flicker Hz
  */
 export function mapRhythmModeToNova(rhythmMode: string): number {
   switch (rhythmMode) {
+    case 'delta':
+      return NOVA_FREQUENCY_MAP.delta;     // 3 Hz - deep sleep/trance
     case 'theta':
-      return NOVA_FREQUENCY_MAP.theta;
+      return NOVA_FREQUENCY_MAP.theta;     // 6 Hz - meditation/hypnagogic
     case 'alpha':
-      return NOVA_FREQUENCY_MAP.alpha;
+      return NOVA_FREQUENCY_MAP.alpha;     // 10 Hz - visuals/flow states
+    case 'beta':
+      return NOVA_FREQUENCY_MAP.beta;      // 15 Hz - focus/alertness
+    case 'gamma':
+      return NOVA_FREQUENCY_MAP.gamma;     // 40 Hz - cognitive enhancement
+    case 'breathing':
+      return NOVA_FREQUENCY_MAP.alpha;     // Alpha for calm, breathing-synced experience
+    case 'heartbeat':
+      return NOVA_FREQUENCY_MAP.alpha;     // Alpha for grounded, rhythmic experience
+    case 'still':
+    case 'none':
+      return 0;                            // No flicker
     default:
-      return NOVA_FREQUENCY_MAP.alpha; // Default to alpha for breathing/heartbeat
+      return NOVA_FREQUENCY_MAP.alpha;     // Default to alpha for best visuals
   }
+}
+
+/**
+ * Get optimal Nova frequency from a phase configuration
+ * Priority: nova_frequency > entrainment_rate > rhythm_mode > frequency range
+ */
+export function getNovaFrequencyForPhase(phase: {
+  nova_frequency?: number;
+  entrainment_rate?: number;
+  rhythm_mode?: string;
+  entrainment_mode?: string;
+  frequency?: { start: number; end: number };
+}, progress: number = 0.5): number {
+  // 1. Explicit nova_frequency override takes priority
+  if (phase.nova_frequency !== undefined && phase.nova_frequency > 0) {
+    return phase.nova_frequency;
+  }
+  
+  // 2. Use entrainment_rate if specified (this is the exact Hz for neural entrainment)
+  if (phase.entrainment_rate !== undefined && phase.entrainment_rate > 0) {
+    // Clamp to safe range (1-50 Hz)
+    return Math.min(50, Math.max(1, phase.entrainment_rate));
+  }
+  
+  // 3. Map from rhythm_mode or entrainment_mode
+  const mode = phase.rhythm_mode || phase.entrainment_mode;
+  if (mode && mode !== 'none' && mode !== 'still') {
+    return mapRhythmModeToNova(mode);
+  }
+  
+  // 4. Interpolate from frequency range based on progress
+  if (phase.frequency) {
+    const interpolatedFreq = phase.frequency.start + (phase.frequency.end - phase.frequency.start) * progress;
+    return mapFrequencyToNova(interpolatedFreq);
+  }
+  
+  // Default to alpha
+  return NOVA_FREQUENCY_MAP.alpha;
 }
 
 export interface NovaState {
