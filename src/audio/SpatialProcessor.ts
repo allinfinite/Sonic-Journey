@@ -166,8 +166,11 @@ export class SpatialProcessor {
 
     // === STEREO WIDTH ===
     if (this.settings.stereoWidthEnabled) {
+      // StereoWidener width must be between 0 and 1
+      // Map our 0-2 range to 0-1 for Tone.js
+      const normalizedWidth = Math.min(1, Math.max(0, this.settings.stereoWidth / 2));
       this.widener = new Tone.StereoWidener({
-        width: this.settings.stereoWidth,
+        width: normalizedWidth,
       });
       
       currentNode.connect(this.widener);
@@ -232,7 +235,9 @@ export class SpatialProcessor {
 
     // Update stereo width
     if (this.widener && settings.stereoWidth !== undefined) {
-      this.widener.width.rampTo(settings.stereoWidth, 0.1);
+      // StereoWidener width must be between 0 and 1
+      const normalizedWidth = Math.min(1, Math.max(0, settings.stereoWidth / 2));
+      this.widener.width.rampTo(normalizedWidth, 0.1);
     }
 
     // Update auto-panner

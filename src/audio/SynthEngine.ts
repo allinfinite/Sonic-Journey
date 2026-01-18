@@ -77,7 +77,7 @@ export class SynthEngine {
     scale: MelodyScale;
     intensity: number;
     density: NoteDensity;
-    currentPhase: PhaseConfig | null;
+    currentPhaseName: string | null;  // Track by name, not object reference
   } = {
     enhancedEngine: null,
     enabled: false,
@@ -85,7 +85,7 @@ export class SynthEngine {
     scale: 'pentatonic_minor',
     intensity: 0.3,
     density: 'moderate',
-    currentPhase: null,
+    currentPhaseName: null,
   };
 
   // Psychedelic audio enhancement engine
@@ -393,7 +393,7 @@ export class SynthEngine {
       this.melody.enhancedEngine = null;
     }
     this.melody.enabled = false;
-    this.melody.currentPhase = null;
+    this.melody.currentPhaseName = null;
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
@@ -1025,10 +1025,11 @@ export class SynthEngine {
     const density = phase.melody_density || 'moderate';
 
     // Check if we need to recreate the engine (style/scale changed)
+    // Compare by phase name to avoid recreating on every frame due to object reference changes
     const needsRecreate = !this.melody.enhancedEngine || 
                          this.melody.style !== style ||
                          this.melody.scale !== scale ||
-                         this.melody.currentPhase !== phase;
+                         this.melody.currentPhaseName !== phase.name;
 
     if (needsRecreate) {
       // Dispose old engine
@@ -1099,7 +1100,7 @@ export class SynthEngine {
     this.melody.scale = scale;
     this.melody.intensity = intensity;
     this.melody.density = density;
-    this.melody.currentPhase = phase;
+    this.melody.currentPhaseName = phase.name;
   }
 
   /**
@@ -1152,21 +1153,9 @@ export class SynthEngine {
       try {
         await this.psychedelicEngine.initialize();
         
-        // Connect to master output (parallel with existing audio)
-        // The engine will process audio routed to it
-        if (this.master) {
-          // Create a gain node to send signal to psychedelic engine
-          const sendGain = this.ctx.createGain();
-          sendGain.gain.value = 0.5;
-          
-          // Connect foundation to send (for processing)
-          if (this.foundation.gain) {
-            this.foundation.gain.connect(sendGain);
-          }
-          if (this.harmony.gain) {
-            this.harmony.gain.connect(sendGain);
-          }
-        }
+        // Note: PsychedelicEngine generates its own harmonics based on the foundation frequency
+        // It doesn't process the input signal directly, so no routing needed here
+        // The setFrequency() call below keeps it synchronized with the journey
         
         this.psychedelicEngineInitialized = true;
       } catch (error) {
