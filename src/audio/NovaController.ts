@@ -283,8 +283,13 @@ export class NovaController {
     this.isStartingFlicker = true;
     this.addDebugLog(`Starting flicker at ${frequencyHz} Hz`, 'info');
 
-    // Stop any existing flicker
-    this.stopFlicker();
+    // Stop any existing flicker interval (but don't send 02ff - we're about to start new flicker)
+    // Match ble-web.html behavior: just clear interval, don't turn off light
+    if (this.flickerInterval) {
+      clearInterval(this.flickerInterval);
+      this.flickerInterval = null;
+      this.addDebugLog('Cleared existing flicker interval', 'info');
+    }
 
     // Calculate interval (ms) from frequency (Hz)
     // Minimum interval of 150ms to avoid overwhelming the device
