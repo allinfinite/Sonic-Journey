@@ -84,6 +84,7 @@ export class BassPadEngine {
    * Start a new tone at the given position
    */
   async startTouch(id: number, x: number, y: number): Promise<void> {
+    // Ensure audio is initialized on first touch
     if (!this.isInitialized) {
       await this.initializeTone();
     }

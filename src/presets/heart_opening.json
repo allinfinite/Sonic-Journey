@@ -12,74 +12,145 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": true
+    "texture_layer": true,
+    "melody_layer": true
   },
   "phases": [
     {
       "name": "Grounding",
       "start_min": 0,
       "end_min": 10,
-      "frequency": { "start": 38, "end": 40 },
-      "support_frequency": { "start": 34, "end": 36 },
-      "amplitude": { "start": 0.0, "end": 0.6 },
+      "frequency": {
+        "start": 38,
+        "end": 40
+      },
+      "support_frequency": {
+        "start": 34,
+        "end": 36
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
       "breath_cycle_sec": 10,
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "mixed",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     },
     {
       "name": "Heart Space",
       "start_min": 10,
       "end_min": 25,
-      "frequency": { "start": 40, "end": 45 },
-      "support_frequency": { "start": 36, "end": 42 },
-      "amplitude": { "start": 0.6, "end": 0.7 },
+      "frequency": {
+        "start": 40,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 36,
+        "end": 42
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
       "breath_cycle_sec": 14,
       "fm_depth": 0.2,
       "fm_rate": 0.05,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.32499999999999996,
+      "melody_density": "sparse"
     },
     {
       "name": "Expanding",
       "start_min": 25,
       "end_min": 40,
-      "frequency": { "start": 45, "end": 48 },
-      "support_frequency": { "start": 42, "end": 44 },
-      "amplitude": { "start": 0.7, "end": 0.75 },
+      "frequency": {
+        "start": 45,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 42,
+        "end": 44
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
       "breath_cycle_sec": 16,
       "fm_depth": 0.25,
       "fm_rate": 0.04,
       "rhythm_mode": "theta",
       "entrainment_mode": "theta",
-      "entrainment_rate": 6.0
+      "entrainment_rate": 6,
+      "melody_enabled": true,
+      "melody_style": "drone",
+      "melody_scale": "pentatonic_minor",
+      "melody_intensity": 0.3625,
+      "melody_density": "sparse"
     },
     {
       "name": "Integration",
       "start_min": 40,
       "end_min": 52,
-      "frequency": { "start": 48, "end": 42 },
-      "support_frequency": { "start": 44, "end": 38 },
-      "amplitude": { "start": 0.75, "end": 0.6 },
+      "frequency": {
+        "start": 48,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.6
+      },
       "breath_cycle_sec": 12,
       "fm_depth": 0.15,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "mixed",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.3375,
+      "melody_density": "sparse"
     },
     {
       "name": "Closing",
       "start_min": 52,
       "end_min": 60,
-      "frequency": { "start": 42, "end": 40 },
-      "support_frequency": { "start": 38, "end": 36 },
-      "amplitude": { "start": 0.6, "end": 0.0 },
+      "frequency": {
+        "start": 42,
+        "end": 40
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 36
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0
+      },
       "breath_cycle_sec": 10,
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     }
   ]
 }

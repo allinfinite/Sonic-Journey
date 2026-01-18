@@ -12,8 +12,9 @@ import { PresetBrowser } from './components/PresetBrowser/PresetBrowser';
 import { ExportDialog } from './components/ExportDialog/ExportDialog';
 import { BassGenerator } from './components/BassGenerator/BassGenerator';
 import { JourneyGenerator } from './components/JourneyGenerator/JourneyGenerator';
+import { BassPad } from './components/BassPad/BassPad';
 
-type AppMode = 'journey' | 'bass';
+type AppMode = 'journey' | 'bass' | 'basspad';
 
 function PhaseSelector() {
   const { journey, selectedPhaseIndex, selectPhase, addPhase, removePhase } = useJourneyStore();
@@ -139,6 +140,11 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
               Bass Track Generator for Vibe Table
             </p>
           )}
+          {mode === 'basspad' && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Interactive Deep Bass Touch Pad
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {mode === 'journey' && (
@@ -222,6 +228,28 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
           )}
         </button>
+        <button
+          onClick={() => onModeChange('basspad')}
+          className={`px-5 py-3 text-sm font-medium rounded-t-lg transition-all relative ${
+            mode === 'basspad'
+              ? 'bg-[var(--color-surface)] text-[var(--color-text)]'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]/50'
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <circle cx="15.5" cy="8.5" r="1.5" />
+              <circle cx="8.5" cy="15.5" r="1.5" />
+              <circle cx="15.5" cy="15.5" r="1.5" />
+            </svg>
+            Bass Pad
+          </span>
+          {mode === 'basspad' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
+          )}
+        </button>
       </div>
     </header>
   );
@@ -263,6 +291,7 @@ function App() {
       <main className="flex-1 p-6 space-y-6 bg-[var(--color-surface)]/30">
         {mode === 'journey' && <JourneyCreator />}
         {mode === 'bass' && <BassGenerator />}
+        {mode === 'basspad' && <BassPad />}
       </main>
 
       {/* Modals */}

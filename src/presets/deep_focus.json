@@ -13,7 +13,8 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false
+    "texture_layer": false,
+    "melody_layer": true
   },
   "phases": [
     {
@@ -38,7 +39,12 @@
         "randomVariation": 10
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 10
+      "binaural_beat_frequency": 10,
+      "melody_enabled": true,
+      "melody_style": "drone",
+      "melody_scale": "pentatonic_minor",
+      "melody_intensity": 0.25,
+      "melody_density": "sparse"
     },
     {
       "name": "Engage",
@@ -62,7 +68,12 @@
         "burstGap": 400
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 12
+      "binaural_beat_frequency": 12,
+      "melody_enabled": true,
+      "melody_style": "arpeggio",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.3,
+      "melody_density": "moderate"
     },
     {
       "name": "Flow State",
@@ -87,7 +98,12 @@
         "randomVariation": 15
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 12
+      "binaural_beat_frequency": 12,
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.35,
+      "melody_density": "moderate"
     },
     {
       "name": "Wind Down",
@@ -110,7 +126,12 @@
         "randomVariation": 10
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 10
+      "binaural_beat_frequency": 10,
+      "melody_enabled": true,
+      "melody_style": "drone",
+      "melody_scale": "pentatonic_minor",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     }
   ]
 }

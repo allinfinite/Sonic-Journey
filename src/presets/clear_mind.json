@@ -12,62 +12,119 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false
+    "texture_layer": false,
+    "melody_layer": true
   },
   "phases": [
     {
       "name": "Center",
       "start_min": 0,
       "end_min": 6,
-      "frequency": { "start": 40, "end": 45 },
-      "support_frequency": { "start": 36, "end": 40 },
-      "amplitude": { "start": 0.0, "end": 0.6 },
+      "frequency": {
+        "start": 40,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 36,
+        "end": 40
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
       "breath_cycle_sec": 8,
       "fm_depth": 0.1,
       "fm_rate": 0.1,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     },
     {
       "name": "Sharpen",
       "start_min": 6,
       "end_min": 15,
-      "frequency": { "start": 45, "end": 55 },
-      "support_frequency": { "start": 40, "end": 50 },
-      "amplitude": { "start": 0.6, "end": 0.65 },
+      "frequency": {
+        "start": 45,
+        "end": 55
+      },
+      "support_frequency": {
+        "start": 40,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.65
+      },
       "breath_cycle_sec": 7,
       "fm_depth": 0.15,
       "fm_rate": 0.12,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 12.0
+      "entrainment_rate": 12,
+      "melody_enabled": true,
+      "melody_style": "arpeggio",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.3125,
+      "melody_density": "moderate"
     },
     {
       "name": "Focus",
       "start_min": 15,
       "end_min": 25,
-      "frequency": { "start": 55, "end": 55 },
-      "support_frequency": { "start": 50, "end": 50 },
-      "amplitude": { "start": 0.65, "end": 0.6 },
+      "frequency": {
+        "start": 55,
+        "end": 55
+      },
+      "support_frequency": {
+        "start": 50,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.6
+      },
       "breath_cycle_sec": 6,
       "fm_depth": 0.1,
       "fm_rate": 0.1,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 12.0
+      "entrainment_rate": 12,
+      "melody_enabled": true,
+      "melody_style": "arpeggio",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.3125,
+      "melody_density": "moderate"
     },
     {
       "name": "Transition",
       "start_min": 25,
       "end_min": 30,
-      "frequency": { "start": 55, "end": 45 },
-      "support_frequency": { "start": 50, "end": 40 },
-      "amplitude": { "start": 0.6, "end": 0.0 },
+      "frequency": {
+        "start": 55,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 50,
+        "end": 40
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0
+      },
       "breath_cycle_sec": 8,
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     }
   ]
 }

@@ -12,75 +12,146 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": true
+    "texture_layer": true,
+    "melody_layer": true
   },
   "phases": [
     {
       "name": "Foundation",
       "start_min": 0,
       "end_min": 12,
-      "frequency": { "start": 38, "end": 42 },
-      "support_frequency": { "start": 34, "end": 38 },
-      "amplitude": { "start": 0.0, "end": 0.6 },
+      "frequency": {
+        "start": 38,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 34,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
       "breath_cycle_sec": 12,
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "evolving",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     },
     {
       "name": "First Wave",
       "start_min": 12,
       "end_min": 28,
-      "frequency": { "start": 42, "end": 55 },
-      "support_frequency": { "start": 38, "end": 50 },
-      "amplitude": { "start": 0.6, "end": 0.7 },
+      "frequency": {
+        "start": 42,
+        "end": 55
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
       "breath_cycle_sec": 10,
       "fm_depth": 0.2,
       "fm_rate": 0.1,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 9.0
+      "entrainment_rate": 9,
+      "melody_enabled": true,
+      "melody_style": "arpeggio",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.32499999999999996,
+      "melody_density": "moderate"
     },
     {
       "name": "Peak Experience",
       "start_min": 28,
       "end_min": 45,
-      "frequency": { "start": 55, "end": 65 },
-      "support_frequency": { "start": 50, "end": 60 },
-      "amplitude": { "start": 0.7, "end": 0.8 },
+      "frequency": {
+        "start": 55,
+        "end": 65
+      },
+      "support_frequency": {
+        "start": 50,
+        "end": 60
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.8
+      },
       "breath_cycle_sec": 8,
       "fm_depth": 0.3,
       "fm_rate": 0.12,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 10.0
+      "entrainment_rate": 10,
+      "melody_enabled": true,
+      "melody_style": "arpeggio",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.375,
+      "melody_density": "moderate"
     },
     {
       "name": "Integration",
       "start_min": 45,
       "end_min": 60,
-      "frequency": { "start": 65, "end": 48 },
-      "support_frequency": { "start": 60, "end": 44 },
-      "amplitude": { "start": 0.8, "end": 0.6 },
+      "frequency": {
+        "start": 65,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 60,
+        "end": 44
+      },
+      "amplitude": {
+        "start": 0.8,
+        "end": 0.6
+      },
       "breath_cycle_sec": 12,
       "fm_depth": 0.2,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "mixed",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.35,
+      "melody_density": "sparse"
     },
     {
       "name": "Grounding",
       "start_min": 60,
       "end_min": 75,
-      "frequency": { "start": 48, "end": 40 },
-      "support_frequency": { "start": 44, "end": 36 },
-      "amplitude": { "start": 0.6, "end": 0.0 },
+      "frequency": {
+        "start": 48,
+        "end": 40
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 36
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0
+      },
       "breath_cycle_sec": 14,
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "melody_enabled": true,
+      "melody_style": "mixed",
+      "melody_scale": "pentatonic_major",
+      "melody_intensity": 0.2,
+      "melody_density": "sparse"
     }
   ]
 }
