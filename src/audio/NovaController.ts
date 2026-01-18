@@ -182,13 +182,6 @@ export class NovaController {
       });
 
       this.addDebugLog('Nova connection complete!', 'success');
-      
-      // Wait a bit after connection before allowing commands
-      // The device might need time to initialize its internal state
-      this.addDebugLog('Waiting for device to be ready...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      this.addDebugLog('Device ready for commands', 'success');
-      
       return true;
     } catch (error: any) {
       let errorMessage = 'Unknown error';
