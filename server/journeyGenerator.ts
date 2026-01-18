@@ -4,7 +4,7 @@
  */
 
 import OpenAI from 'openai';
-import type { JourneyConfig, PhaseConfig, RhythmMode } from '../src/types/journey';
+import type { JourneyConfig, PhaseConfig, RhythmMode, NovaPattern } from '../src/types/journey';
 import { DEFAULT_LAYERS, DEFAULT_SAFETY } from '../src/types/journey';
 
 const openai = new OpenAI({
@@ -73,8 +73,11 @@ RHYTHM MODES:
 - "still": No pulsing (for steady states)
 - "breathing": Slow breathing rhythm (~12-16 sec cycles)
 - "heartbeat": Heartbeat rhythm (~60 BPM)
-- "theta": Theta wave entrainment (4-7 Hz)
-- "alpha": Alpha wave entrainment (8-12 Hz)
+- "delta": Delta wave entrainment (1-4 Hz) - deep sleep, trance
+- "theta": Theta wave entrainment (4-7 Hz) - meditation, hypnagogic
+- "alpha": Alpha wave entrainment (8-12 Hz) - visuals, flow states
+- "beta": Beta wave entrainment (13-30 Hz) - focus, alertness
+- "gamma": Gamma wave entrainment (30-50 Hz) - cognitive enhancement
 
 PHASE STRUCTURE:
 A journey typically has 3-6 phases:
@@ -96,6 +99,21 @@ FREQUENCY GUIDELINES:
 - Activating: 70-90 Hz
 - Always stay within 20-120 Hz range
 
+NOVA LIGHT MASK PATTERNS:
+Nova patterns create synchronized light flicker for enhanced entrainment:
+- "steady": Fixed frequency flicker (simple, effective)
+- "sweep": Smooth frequency transition (e.g., 10Hz to 6Hz over phase)
+- "wave": Sinusoidal modulation (organic, breathing feel)
+- "burst": Groups of flashes with pauses (attention-grabbing)
+- "rhythm": Custom on/off pattern (heartbeat, breathing)
+
+Nova pattern guidelines:
+- Use "sweep" for transition phases (settling, returning)
+- Use "wave" for meditative states (theta, delta)
+- Use "burst" for activation/focus phases (beta)
+- Use "steady" for simple entrainment
+- Base frequency should match entrainment: delta=3Hz, theta=6Hz, alpha=10Hz, beta=15Hz
+
 OUTPUT FORMAT:
 Return a JSON object with this exact structure:
 {
@@ -103,6 +121,7 @@ Return a JSON object with this exact structure:
   "description": "Brief description",
   "duration_minutes": <number>,
   "sample_rate": 48000,
+  "nova_enabled": true,
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
@@ -116,8 +135,21 @@ Return a JSON object with this exact structure:
       "amplitude": { "start": <0-1>, "end": <0-1> },
       "breath_cycle_sec": <seconds>,
       "fm_depth": <0-0.2>,
-      "rhythm_mode": "breathing" | "still" | "heartbeat" | "theta" | "alpha",
-      "entrainment_mode": "breathing" | "none" | "heartbeat" | "theta" | "alpha"
+      "rhythm_mode": "breathing" | "still" | "heartbeat" | "delta" | "theta" | "alpha" | "beta" | "gamma",
+      "entrainment_mode": "breathing" | "none" | "heartbeat" | "delta" | "theta" | "alpha" | "beta" | "gamma",
+      "entrainment_rate": <optional Hz for exact entrainment>,
+      "nova_enabled": true,
+      "nova_pattern": {
+        "type": "steady" | "sweep" | "wave" | "burst" | "rhythm",
+        "baseFrequency": <Hz>,
+        "targetFrequency": <Hz for sweep>,
+        "waveAmplitude": <Hz variation for wave>,
+        "wavePeriod": <ms for wave>,
+        "burstCount": <flashes for burst>,
+        "burstGap": <ms gap for burst>
+      },
+      "binaural_enabled": true,
+      "binaural_beat_frequency": <Hz matching entrainment>
     }
   ]
 }
@@ -127,7 +159,10 @@ IMPORTANT:
 - All frequencies must be between 20-120 Hz
 - All amplitudes must be between 0-1
 - Use appropriate rhythm modes for the therapeutic intent
-- Create smooth transitions between phases`;
+- Create smooth transitions between phases
+- Include nova_pattern for each phase to create dynamic light experiences
+- Match nova_pattern type to phase purpose (sweep for transitions, wave for meditation, burst for activation)
+- Include binaural_enabled and binaural_beat_frequency matching the entrainment for enhanced neural synchronization`;
 }
 
 /**
@@ -149,6 +184,146 @@ Return the journey configuration as JSON.`;
 }
 
 /**
+ * Generate a Nova pattern based on rhythm mode if not provided
+ */
+function generateNovaPattern(
+  rhythmMode: RhythmMode,
+  entrainmentRate?: number,
+  phaseIndex?: number,
+  totalPhases?: number
+): NovaPattern {
+  // Get base frequency from entrainment rate or rhythm mode
+  let baseFreq = entrainmentRate || 10;
+  if (!entrainmentRate) {
+    switch (rhythmMode) {
+      case 'delta': baseFreq = 3; break;
+      case 'theta': baseFreq = 6; break;
+      case 'alpha': baseFreq = 10; break;
+      case 'beta': baseFreq = 15; break;
+      case 'gamma': baseFreq = 40; break;
+      default: baseFreq = 10;
+    }
+  }
+
+  // Determine pattern type based on context
+  const isFirstPhase = phaseIndex === 0;
+  const isLastPhase = totalPhases && phaseIndex === totalPhases - 1;
+
+  // First/last phases get sweeps for transition
+  if (isFirstPhase) {
+    return {
+      type: 'sweep',
+      baseFrequency: Math.max(baseFreq, 8), // Start higher
+      targetFrequency: baseFreq,
+      randomVariation: 10,
+    };
+  }
+
+  if (isLastPhase) {
+    return {
+      type: 'sweep',
+      baseFrequency: baseFreq,
+      targetFrequency: Math.max(baseFreq, 10), // End at alert state
+      randomVariation: 10,
+    };
+  }
+
+  // Pattern type based on rhythm mode
+  switch (rhythmMode) {
+    case 'delta':
+      // Very slow wave for deep states
+      return {
+        type: 'wave',
+        baseFrequency: baseFreq,
+        waveAmplitude: 0.5,
+        wavePeriod: 20000,
+        randomVariation: 25,
+      };
+
+    case 'theta':
+      // Gentle wave for meditation
+      return {
+        type: 'wave',
+        baseFrequency: baseFreq,
+        waveAmplitude: 1,
+        wavePeriod: 12000,
+        randomVariation: 15,
+      };
+
+    case 'alpha':
+      // Smooth wave for visuals/flow
+      return {
+        type: 'wave',
+        baseFrequency: baseFreq,
+        waveAmplitude: 1.5,
+        wavePeriod: 6000,
+        randomVariation: 15,
+      };
+
+    case 'beta':
+      // Burst pattern for focus/activation
+      return {
+        type: 'burst',
+        baseFrequency: baseFreq,
+        burstCount: 5,
+        burstGap: 400,
+      };
+
+    case 'gamma':
+      // Steady with slight variation for cognitive enhancement
+      return {
+        type: 'steady',
+        baseFrequency: 40,
+        randomVariation: 5,
+      };
+
+    case 'heartbeat':
+      // Heartbeat rhythm pattern
+      return {
+        type: 'rhythm',
+        baseFrequency: baseFreq,
+        rhythmPattern: [100, 200, 100, 600],
+      };
+
+    case 'breathing':
+      // Organic wave that feels like breathing
+      return {
+        type: 'wave',
+        baseFrequency: baseFreq,
+        waveAmplitude: 2,
+        wavePeriod: 12000, // ~12 sec breath cycle
+        randomVariation: 15,
+      };
+
+    default:
+      // Default to wave pattern
+      return {
+        type: 'wave',
+        baseFrequency: baseFreq,
+        waveAmplitude: 1.5,
+        wavePeriod: 8000,
+        randomVariation: 10,
+      };
+  }
+}
+
+/**
+ * Get binaural beat frequency from rhythm mode
+ */
+function getBinauralFrequency(rhythmMode: RhythmMode, entrainmentRate?: number): number {
+  if (entrainmentRate) return entrainmentRate;
+  
+  switch (rhythmMode) {
+    case 'delta': return 3;
+    case 'theta': return 6;
+    case 'alpha': return 10;
+    case 'beta': return 15;
+    case 'gamma': return 40;
+    default: return 10;
+  }
+}
+
+/**
  * Validate and normalize the generated journey config
  */
 function validateAndNormalizeJourney(
@@ -159,6 +334,8 @@ function validateAndNormalizeJourney(
   if (!parsed.name || !parsed.phases || !Array.isArray(parsed.phases)) {
     throw new Error('Invalid journey structure from AI');
   }
+
+  const totalPhases = parsed.phases.length;
 
   // Normalize phases
   const phases: PhaseConfig[] = parsed.phases.map((phase: any, index: number) => {
@@ -179,11 +356,50 @@ function validateAndNormalizeJourney(
     const ampStart = Math.max(0, Math.min(1, phase.amplitude?.start || 0.5));
     const ampEnd = Math.max(0, Math.min(1, phase.amplitude?.end || 0.5));
 
-    // Validate rhythm mode
-    const validRhythms: RhythmMode[] = ['still', 'breathing', 'heartbeat', 'theta', 'alpha'];
+    // Validate rhythm mode (expanded set)
+    const validRhythms: RhythmMode[] = ['still', 'breathing', 'heartbeat', 'delta', 'theta', 'alpha', 'beta', 'gamma'];
     const rhythmMode = validRhythms.includes(phase.rhythm_mode)
       ? phase.rhythm_mode
       : 'breathing';
+
+    // Get entrainment rate if provided
+    const entrainmentRate = phase.entrainment_rate ? 
+      Math.max(1, Math.min(50, phase.entrainment_rate)) : undefined;
+
+    // Generate or validate nova pattern
+    let novaPattern: NovaPattern | undefined;
+    if (phase.nova_pattern && phase.nova_pattern.type) {
+      // Validate provided pattern
+      const validTypes = ['steady', 'sweep', 'wave', 'burst', 'rhythm', 'pulse', 'random'];
+      if (validTypes.includes(phase.nova_pattern.type)) {
+        novaPattern = {
+          type: phase.nova_pattern.type,
+          baseFrequency: Math.max(1, Math.min(50, phase.nova_pattern.baseFrequency || 10)),
+          targetFrequency: phase.nova_pattern.targetFrequency ? 
+            Math.max(1, Math.min(50, phase.nova_pattern.targetFrequency)) : undefined,
+          waveAmplitude: phase.nova_pattern.waveAmplitude ?
+            Math.max(0.5, Math.min(5, phase.nova_pattern.waveAmplitude)) : undefined,
+          wavePeriod: phase.nova_pattern.wavePeriod ?
+            Math.max(2000, Math.min(20000, phase.nova_pattern.wavePeriod)) : undefined,
+          burstCount: phase.nova_pattern.burstCount ?
+            Math.max(2, Math.min(10, phase.nova_pattern.burstCount)) : undefined,
+          burstGap: phase.nova_pattern.burstGap ?
+            Math.max(200, Math.min(2000, phase.nova_pattern.burstGap)) : undefined,
+          randomVariation: phase.nova_pattern.randomVariation ?
+            Math.max(0, Math.min(50, phase.nova_pattern.randomVariation)) : undefined,
+        };
+      }
+    }
+    
+    // Auto-generate nova pattern if not provided
+    if (!novaPattern) {
+      novaPattern = generateNovaPattern(rhythmMode, entrainmentRate, index, totalPhases);
+    }
+
+    // Get binaural frequency
+    const binauralFreq = phase.binaural_beat_frequency ?
+      Math.max(1, Math.min(50, phase.binaural_beat_frequency)) :
+      getBinauralFrequency(rhythmMode, entrainmentRate);
 
     return {
       name: phase.name || `Phase ${index + 1}`,
@@ -193,7 +409,13 @@ function validateAndNormalizeJourney(
       breath_cycle_sec: Math.max(8, Math.min(24, phase.breath_cycle_sec || 12)),
       fm_depth: Math.max(0, Math.min(0.2, phase.fm_depth || 0.1)),
       rhythm_mode: rhythmMode,
-      entrainment_mode: phase.entrainment_mode || phase.rhythm_mode || 'breathing',
+      entrainment_mode: phase.entrainment_mode || rhythmMode || 'breathing',
+      entrainment_rate: entrainmentRate,
+      nova_enabled: phase.nova_enabled !== false,
+      nova_pattern: novaPattern,
+      binaural_enabled: phase.binaural_enabled !== false,
+      binaural_beat_frequency: binauralFreq,
+      binaural_carrier_frequency: phase.binaural_carrier_frequency || 200,
     };
   });
 
@@ -232,6 +454,7 @@ function validateAndNormalizeJourney(
     sample_rate: parsed.sample_rate || 48000,
     layers: parsed.layers || DEFAULT_LAYERS,
     safety: parsed.safety || DEFAULT_SAFETY,
+    nova_enabled: parsed.nova_enabled !== false, // Enable Nova by default
     phases,
   };
 }
