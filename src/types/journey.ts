@@ -124,6 +124,8 @@ export interface PhaseConfig {
   binaural_enabled?: boolean; // Enable binaural beats for this phase
   binaural_beat_frequency?: number; // Binaural beat frequency (Hz) - e.g., 3, 6, 10, 15 for Delta/Theta/Alpha/Beta
   binaural_carrier_frequency?: number; // Carrier frequency (Hz) - default 200 Hz, range 100-400 Hz recommended
+  binaural_volume?: number; // Volume/intensity (0-1) - default 0.3, range 0.1-0.8 recommended
+  binaural_waveform?: 'sine' | 'triangle' | 'sawtooth' | 'square'; // Waveform type - default 'sine'
   // Melody layer settings
   melody_enabled?: boolean; // Enable melody layer for this phase
   melody_style?: MelodyStyle; // Melody generation style

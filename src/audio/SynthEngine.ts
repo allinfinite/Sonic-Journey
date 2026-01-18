@@ -1003,9 +1003,18 @@ export class SynthEngine {
       this.binaural.carrierFreq = carrierFreq;
     }
     
+    // Get waveform type (default 'sine')
+    const waveform = phase.binaural_waveform || 'sine';
+    if (this.binaural.left.osc) {
+      this.binaural.left.osc.type = waveform;
+    }
+    if (this.binaural.right.osc) {
+      this.binaural.right.osc.type = waveform;
+    }
+    
     // Enable binaural beats (fade in)
     if (!this.binaural.enabled) {
-      const binauralVolume = 0.3; // 30% volume for binaural beats (subtle background)
+      const binauralVolume = phase.binaural_volume ?? 0.3; // Default 30% volume
       if (this.binaural.left.gain) {
         this.binaural.left.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
       }
@@ -1013,6 +1022,15 @@ export class SynthEngine {
         this.binaural.right.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
       }
       this.binaural.enabled = true;
+    } else {
+      // Update volume if changed
+      const binauralVolume = phase.binaural_volume ?? 0.3;
+      if (this.binaural.left.gain) {
+        this.binaural.left.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
+      }
+      if (this.binaural.right.gain) {
+        this.binaural.right.gain.gain.setTargetAtTime(binauralVolume, now, rampTime);
+      }
     }
   }
 

@@ -556,26 +556,109 @@ export function PhaseControls() {
           </label>
         </div>
         {phase.binaural_enabled && (
-          <div className="space-y-2 pl-6">
-            <div className="text-xs text-[var(--color-text-muted)]">
-              {phase.binaural_beat_frequency 
-                ? `Beat: ${phase.binaural_beat_frequency} Hz`
-                : phase.rhythm_mode === 'theta'
-                  ? `Auto: 6 Hz (Theta)`
-                  : phase.rhythm_mode === 'alpha'
-                    ? `Auto: 10 Hz (Alpha)`
-                    : `Auto: ${(() => {
-                        const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
-                        if (avgFreq <= 4) return '3 Hz (Delta)';
-                        if (avgFreq <= 7) return '6 Hz (Theta)';
-                        if (avgFreq <= 12) return '10 Hz (Alpha)';
-                        if (avgFreq <= 30) return '15 Hz (Beta)';
-                        return '10 Hz (Alpha)';
-                      })()}`
-              }
+          <div className="space-y-3 pl-6">
+            {/* Beat Frequency */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Beat Frequency</label>
+                <span className="text-xs text-[var(--color-text)]">
+                  {phase.binaural_beat_frequency || (() => {
+                    if (phase.rhythm_mode === 'delta') return 3;
+                    if (phase.rhythm_mode === 'theta') return 6;
+                    if (phase.rhythm_mode === 'alpha') return 10;
+                    if (phase.rhythm_mode === 'beta') return 15;
+                    if (phase.rhythm_mode === 'gamma') return 30;
+                    const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
+                    if (avgFreq <= 4) return 3;
+                    if (avgFreq <= 7) return 6;
+                    if (avgFreq <= 12) return 10;
+                    if (avgFreq <= 30) return 15;
+                    return 10;
+                  })()} Hz
+                </span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="30"
+                step="0.5"
+                value={phase.binaural_beat_frequency || (() => {
+                  if (phase.rhythm_mode === 'delta') return 3;
+                  if (phase.rhythm_mode === 'theta') return 6;
+                  if (phase.rhythm_mode === 'alpha') return 10;
+                  if (phase.rhythm_mode === 'beta') return 15;
+                  if (phase.rhythm_mode === 'gamma') return 30;
+                  return 10;
+                })()}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { binaural_beat_frequency: Number(e.target.value) })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--color-text-muted)] px-1">
+                <span>1 Hz</span>
+                <span>30 Hz</span>
+              </div>
             </div>
-            <div className="text-xs text-[var(--color-text-muted)]">
-              Carrier: {phase.binaural_carrier_frequency || 200} Hz
+
+            {/* Carrier Frequency */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Carrier Frequency</label>
+                <span className="text-xs text-[var(--color-text)]">{phase.binaural_carrier_frequency || 200} Hz</span>
+              </div>
+              <input
+                type="range"
+                min="100"
+                max="400"
+                step="10"
+                value={phase.binaural_carrier_frequency || 200}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { binaural_carrier_frequency: Number(e.target.value) })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--color-text-muted)] px-1">
+                <span>100 Hz</span>
+                <span>400 Hz</span>
+              </div>
+            </div>
+
+            {/* Volume */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-xs text-[var(--color-text-muted)]">Volume</label>
+                <span className="text-xs text-[var(--color-text)]">{Math.round((phase.binaural_volume ?? 0.3) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="80"
+                step="5"
+                value={(phase.binaural_volume ?? 0.3) * 100}
+                onChange={(e) => updatePhase(selectedPhaseIndex, { binaural_volume: Number(e.target.value) / 100 })}
+                className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--color-text-muted)] px-1">
+                <span>10%</span>
+                <span>80%</span>
+              </div>
+            </div>
+
+            {/* Waveform */}
+            <div className="space-y-1">
+              <label className="text-xs text-[var(--color-text-muted)]">Waveform</label>
+              <div className="grid grid-cols-4 gap-1">
+                {(['sine', 'triangle', 'sawtooth', 'square'] as const).map((waveform) => (
+                  <button
+                    key={waveform}
+                    onClick={() => updatePhase(selectedPhaseIndex, { binaural_waveform: waveform })}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors capitalize ${
+                      (phase.binaural_waveform || 'sine') === waveform
+                        ? 'bg-[var(--color-primary)] text-white'
+                        : 'bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-light)]/80'
+                    }`}
+                  >
+                    {waveform}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
