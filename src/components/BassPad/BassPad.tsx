@@ -97,7 +97,7 @@ export function BassPad() {
     }
     
     updateActiveTouches();
-  }, [getNormalizedCoords, updateActiveTouches]);
+  }, [getNormalizedCoords, updateActiveTouches, addMode]);
 
   // Handle pointer move (touch/click drag)
   // Only update position if we created a tone (not if we deleted one)
