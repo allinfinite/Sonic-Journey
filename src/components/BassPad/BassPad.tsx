@@ -14,6 +14,7 @@ export function BassPad() {
   const [activeTouches, setActiveTouches] = useState<TouchPoint[]>([]);
   const touchActionRef = useRef<'create' | 'delete' | null>(null);
   const nextToneIdRef = useRef<number>(1000); // Start from 1000 to avoid conflicts with pointer IDs
+  const [addMode, setAddMode] = useState(false); // When true, clicking pad always adds (doesn't remove existing)
 
   // Initialize engine on mount
   useEffect(() => {
@@ -66,17 +67,28 @@ export function BassPad() {
     // Set pointer capture for this element
     container.setPointerCapture(e.pointerId);
 
-    // Check if there's already a tone at this position (toggle behavior)
+    // Check if there's already a tone at this position
     const existingTouch = engineRef.current.getTouchAtPosition(coords.x, coords.y, 0.05);
     
-    if (existingTouch) {
-      // Remove existing tone at this position
-      engineRef.current.stopTouch(existingTouch.id);
-      touchActionRef.current = 'delete';
-    } else {
-      // Start new tone (audio will be initialized automatically on first touch)
-      await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
+    if (addMode) {
+      // Add mode: Always add a new tone (even if one exists at this position)
+      // Use a unique ID for each click to allow multiple tones
+      const toneId = nextToneIdRef.current++;
+      await engineRef.current.startTouch(toneId, coords.x, coords.y);
       touchActionRef.current = 'create';
+      // Disable add mode after adding one tone
+      setAddMode(false);
+    } else {
+      // Normal mode: Toggle behavior (add if empty, remove if exists)
+      if (existingTouch) {
+        // Remove existing tone at this position
+        engineRef.current.stopTouch(existingTouch.id);
+        touchActionRef.current = 'delete';
+      } else {
+        // Start new tone (audio will be initialized automatically on first touch)
+        await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
+        touchActionRef.current = 'create';
+      }
     }
     
     updateActiveTouches();
@@ -124,20 +136,10 @@ export function BassPad() {
     }
   }, [updateActiveTouches]);
 
-  // Handle add tone button - adds a tone at center position
-  const handleAddTone = useCallback(async () => {
-    if (!engineRef.current) return;
-
-    // Add tone at center of pad
-    const x = 0.5;
-    const y = 0.5;
-    
-    // Generate unique ID for button-added tones
-    const toneId = nextToneIdRef.current++;
-    
-    await engineRef.current.startTouch(toneId, x, y);
-    updateActiveTouches();
-  }, [updateActiveTouches]);
+  // Handle add tone button - enables add mode (next click on pad will add a tone)
+  const handleAddTone = useCallback(() => {
+    setAddMode(true);
+  }, []);
 
   // Draw visual feedback on canvas
   const drawCanvas = useCallback(() => {
@@ -222,15 +224,15 @@ export function BassPad() {
         {/* Add Tone button */}
         <button
           onClick={handleAddTone}
-          className="add-tone-btn"
-          title="Add a new tone at center position"
+          className={`add-tone-btn ${addMode ? 'active' : ''}`}
+          title={addMode ? "Add mode active: Click pad to add tones" : "Enable add mode: Click pad to add a new tone"}
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="16" />
             <line x1="8" y1="12" x2="16" y2="12" />
           </svg>
-          Add Tone
+          {addMode ? 'Add Mode Active' : 'Add Tone'}
         </button>
       </div>
 
@@ -340,6 +342,11 @@ export function BassPad() {
 
         .add-tone-btn:active {
           transform: translateY(0);
+        }
+
+        .add-tone-btn.active {
+          background: linear-gradient(135deg, var(--color-accent), var(--color-primary));
+          box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.5);
         }
 
         .bass-pad-content {
