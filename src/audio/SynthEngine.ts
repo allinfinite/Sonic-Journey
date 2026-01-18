@@ -760,8 +760,8 @@ export class SynthEngine {
         const currentState = novaController.getState();
         if (!currentState.isConnected) return;
         
-        novaController.startPattern(pattern, phaseDurationMs).catch((error) => {
-          console.error('Error starting Nova pattern:', error);
+        novaController.startPattern(pattern, phaseDurationMs).catch(() => {
+          // Silently handle Nova pattern errors
         });
       }
       return;
@@ -780,8 +780,8 @@ export class SynthEngine {
         const currentState = novaController.getState();
         if (!currentState.isConnected) return;
         
-        novaController.startPattern(autoPattern, phaseDurationMs).catch((error) => {
-          console.error('Error starting Nova auto-pattern:', error);
+        novaController.startPattern(autoPattern, phaseDurationMs).catch(() => {
+          // Silently handle Nova auto-pattern errors
         });
       }
       return;
@@ -813,8 +813,8 @@ export class SynthEngine {
       const currentState = novaController.getState();
       if (!currentState.isConnected) return;
 
-      novaController.startFlicker(novaFreq).catch((error) => {
-        console.error('Error starting Nova flicker:', error);
+      novaController.startFlicker(novaFreq).catch(() => {
+        // Silently handle Nova flicker errors
       });
     }
   }
