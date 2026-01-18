@@ -146,6 +146,14 @@ export function BassPad() {
     }
   }, [updateActiveTouches]);
 
+  // Handle delete individual tone
+  const handleDeleteTone = useCallback((toneId: number) => {
+    if (engineRef.current) {
+      engineRef.current.stopTouch(toneId);
+      updateActiveTouches();
+    }
+  }, [updateActiveTouches]);
+
   // Handle add tone button - enables add mode (next click on pad will add a tone)
   const handleAddTone = useCallback(() => {
     setAddMode(true);
@@ -297,6 +305,16 @@ export function BassPad() {
                   <span className="info-value">
                     {formatFrequency(touch.frequency)} • {touch.filterCutoff.toFixed(0)} Hz filter
                   </span>
+                  <button
+                    onClick={() => handleDeleteTone(touch.id)}
+                    className="delete-tone-btn"
+                    title="Delete this tone"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
                 </div>
               ))}
             </div>
@@ -457,6 +475,7 @@ export function BassPad() {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 0.75rem;
           padding: 0.5rem;
           background: var(--color-surface-light);
           border-radius: 6px;
@@ -472,6 +491,29 @@ export function BassPad() {
           font-size: 0.9rem;
           color: var(--color-primary);
           font-family: monospace;
+          flex: 1;
+          text-align: right;
+        }
+
+        .delete-tone-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.25rem;
+          background: transparent;
+          border: 1px solid var(--color-border);
+          border-radius: 4px;
+          color: var(--color-text-muted);
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 28px;
+          height: 28px;
+        }
+
+        .delete-tone-btn:hover {
+          background: var(--color-error);
+          border-color: var(--color-error);
+          color: white;
         }
 
         @media (max-width: 768px) {
