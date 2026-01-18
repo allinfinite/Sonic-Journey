@@ -67,9 +67,22 @@ Bytes 4-5: Timestamp (milliseconds, little-endian)
 Bytes 6-11: Reserved (zeros)
 ```
 
-**⚠️ Testing Results**: Despite capturing the exact protocol from the official app, the streaming protocol **does not produce any visible light output** on this device. All tested variations (exact captured bytes, hybrid 01ff+streaming, different modes) failed to activate lights.
+**⚠️ Testing Results**: Despite capturing the exact protocol from the official app and implementing it correctly (using `writeWithoutResponse`, following exact sequence, sending all commands), the streaming protocol **does not produce any visible light output** on this device.
 
-**Conclusion**: The streaming protocol may control internal device state, timing patterns, or firmware features that are not directly visible, or may require additional initialization/setup that was not captured. The device only responds to `01ff` commands for light control.
+**Latest Test Results (January 2026)**:
+- ✅ All commands sent successfully using `writeWithoutResponse` (correct method)
+- ✅ Exact capture sequence followed (0A → CCCD enable → initial zero → streaming)
+- ✅ 73 streaming commands sent successfully
+- ❌ Device sent **0 status notifications** (device not responding)
+- ❌ No lights activated
+
+**Conclusion**: The streaming protocol may:
+1. Control internal device state or firmware features not visible to the user
+2. Require additional initialization/setup not captured in the BLE trace
+3. Be device firmware version-specific
+4. Serve a different purpose than direct light control (e.g., sensor calibration, device configuration)
+
+**For light control, only the Simple protocol (`01ff` commands) works.**
 
 See `PROTOCOL_ANALYSIS.md` for full capture analysis.
 

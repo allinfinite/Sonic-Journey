@@ -33,6 +33,8 @@ export interface PhaseConfig {
   entrainment_mode?: EntrainmentMode;
   entrainment_rate?: number;
   support_frequency?: FrequencyRange;
+  nova_enabled?: boolean; // Enable Nova flicker for this phase
+  nova_frequency?: number; // Override Nova frequency (Hz), otherwise auto-mapped from frequency/rhythm
 }
 
 // Layer configuration
@@ -51,6 +53,7 @@ export interface JourneyConfig {
   phases: PhaseConfig[];
   layers: LayerConfig;
   safety?: SafetyConfig;
+  nova_enabled?: boolean; // Global Nova toggle for entire journey
 }
 
 // Safety processing configuration

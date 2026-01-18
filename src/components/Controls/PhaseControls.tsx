@@ -4,6 +4,7 @@
 
 import { useJourneyStore } from '../../stores/journeyStore';
 import type { RhythmMode } from '../../types/journey';
+import { mapFrequencyToNova, mapRhythmModeToNova, novaController } from '../../audio/NovaController';
 
 const RHYTHM_OPTIONS: { value: RhythmMode; label: string; description: string }[] = [
   { value: 'still', label: 'Still', description: 'No rhythmic pulse' },
@@ -216,6 +217,50 @@ export function PhaseControls() {
           className="w-full h-2 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
         />
       </div>
+
+      {/* Nova Flicker Control */}
+      {novaController.isAvailable() && (
+        <div className="space-y-2 pt-2 border-t border-[var(--color-surface-light)]">
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-[var(--color-text-muted)] flex items-center gap-2">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              Nova Flicker
+            </label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={phase.nova_enabled !== false && (journey.nova_enabled !== false)}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  updatePhase(selectedPhaseIndex, { nova_enabled: enabled });
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-[var(--color-surface-light)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+            </label>
+          </div>
+          {phase.nova_enabled !== false && (journey.nova_enabled !== false) && (
+            <div className="text-xs text-[var(--color-text-muted)] pl-6">
+              {phase.nova_frequency 
+                ? `Custom: ${phase.nova_frequency} Hz`
+                : phase.rhythm_mode
+                  ? `Auto: ${mapRhythmModeToNova(phase.rhythm_mode)} Hz (from ${phase.rhythm_mode})`
+                  : `Auto: ${mapFrequencyToNova((phase.frequency.start + phase.frequency.end) / 2)} Hz (from audio)`
+              }
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

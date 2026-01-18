@@ -5,6 +5,7 @@
 
 import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode } from '../types/journey';
 import { ENTRAINMENT_PRESETS } from '../types/journey';
+import { novaController, mapFrequencyToNova, mapRhythmModeToNova } from './NovaController';
 
 // Map rhythm mode to entrainment mode
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
@@ -248,6 +249,10 @@ export class SynthEngine {
     this.master?.gain.setValueAtTime(0, now);
 
     this.ctx.suspend();
+    
+    // Pause Nova flicker (but don't turn off light)
+    novaController.stopFlicker();
+
     this.onPlayStateChange?.(false);
   }
 
@@ -271,6 +276,9 @@ export class SynthEngine {
     this.master?.gain.cancelScheduledValues(now);
     this.master?.gain.setValueAtTime(0, now);
     this.ctx.suspend();
+
+    // Stop Nova flicker
+    novaController.stopFlicker();
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
