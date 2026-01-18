@@ -13,6 +13,7 @@ export function BassPad() {
   const engineRef = useRef<BassPadEngine | null>(null);
   const [activeTouches, setActiveTouches] = useState<TouchPoint[]>([]);
   const touchActionRef = useRef<'create' | 'delete' | null>(null);
+  const [mode, setMode] = useState<'toggle' | 'add'>('toggle');
 
   // Initialize engine on mount
   useEffect(() => {
@@ -65,20 +66,21 @@ export function BassPad() {
     // Set pointer capture for this element
     container.setPointerCapture(e.pointerId);
 
-    // Check if there's already a tone at this position (toggle behavior)
+    // Check if there's already a tone at this position
     const existingTouch = engineRef.current.getTouchAtPosition(coords.x, coords.y, 0.05);
-    if (existingTouch) {
-      // Remove existing tone at this position
+    
+    if (mode === 'toggle' && existingTouch) {
+      // Toggle mode: Remove existing tone at this position
       engineRef.current.stopTouch(existingTouch.id);
       touchActionRef.current = 'delete';
     } else {
-      // Start new tone (audio will be initialized automatically on first touch)
+      // Add mode OR no existing tone: Start new tone (audio will be initialized automatically on first touch)
       await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
       touchActionRef.current = 'create';
     }
     
     updateActiveTouches();
-  }, [getNormalizedCoords, updateActiveTouches]);
+  }, [getNormalizedCoords, updateActiveTouches, mode]);
 
   // Handle pointer move (touch/click drag)
   // Only update position if we created a tone (not if we deleted one)
@@ -201,6 +203,24 @@ export function BassPad() {
         <p className="bass-pad-subtitle">
           Touch to add tones, touch again to remove • X = Frequency (20-80 Hz) • Y = Filter
         </p>
+        
+        {/* Mode toggle */}
+        <div className="bass-pad-mode-toggle">
+          <button
+            onClick={() => setMode('toggle')}
+            className={`mode-btn ${mode === 'toggle' ? 'active' : ''}`}
+            title="Toggle mode: Click to add, click again to remove"
+          >
+            Toggle Mode
+          </button>
+          <button
+            onClick={() => setMode('add')}
+            className={`mode-btn ${mode === 'add' ? 'active' : ''}`}
+            title="Add mode: Always adds tones, never deletes"
+          >
+            Add Mode
+          </button>
+        </div>
       </div>
 
       <div className="bass-pad-content">
@@ -282,6 +302,38 @@ export function BassPad() {
         .bass-pad-subtitle {
           color: var(--color-text-muted);
           font-size: 0.95rem;
+          margin-bottom: 1rem;
+        }
+
+        .bass-pad-mode-toggle {
+          display: flex;
+          gap: 0.5rem;
+          justify-content: center;
+          margin-top: 1rem;
+        }
+
+        .mode-btn {
+          padding: 0.5rem 1rem;
+          font-size: 0.85rem;
+          font-weight: 500;
+          background: var(--color-surface-light);
+          color: var(--color-text-muted);
+          border: 1px solid var(--color-border);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .mode-btn:hover {
+          background: var(--color-surface-light);
+          color: var(--color-text);
+          border-color: var(--color-primary);
+        }
+
+        .mode-btn.active {
+          background: var(--color-primary);
+          color: white;
+          border-color: var(--color-primary);
         }
 
         .bass-pad-content {
