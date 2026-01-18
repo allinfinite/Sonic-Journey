@@ -67,12 +67,54 @@ export class NovaController {
   private flickerInterval: ReturnType<typeof setInterval> | null = null;
   private onStateChange?: (state: NovaState) => void;
   private isStartingFlicker = false; // Guard against concurrent startFlicker calls
+  private debugLog: Array<{ timestamp: number; message: string; type: 'info' | 'warn' | 'error' | 'success' }> = [];
+  private onDebugLog?: (log: Array<{ timestamp: number; message: string; type: 'info' | 'warn' | 'error' | 'success' }>) => void;
+  private maxLogEntries = 50;
 
   /**
    * Set callback for state changes
    */
   setOnStateChange(callback: (state: NovaState) => void) {
     this.onStateChange = callback;
+  }
+
+  /**
+   * Set callback for debug log updates
+   */
+  setOnDebugLog(callback: (log: Array<{ timestamp: number; message: string; type: 'info' | 'warn' | 'error' | 'success' }>) => void) {
+    this.onDebugLog = callback;
+  }
+
+  /**
+   * Get current debug log
+   */
+  getDebugLog(): Array<{ timestamp: number; message: string; type: 'info' | 'warn' | 'error' | 'success' }> {
+    return [...this.debugLog];
+  }
+
+  /**
+   * Add entry to debug log
+   */
+  private addDebugLog(message: string, type: 'info' | 'warn' | 'error' | 'success' = 'info') {
+    const entry = {
+      timestamp: Date.now(),
+      message,
+      type,
+    };
+    this.debugLog.push(entry);
+    // Keep only last maxLogEntries
+    if (this.debugLog.length > this.maxLogEntries) {
+      this.debugLog.shift();
+    }
+    this.onDebugLog?.(this.getDebugLog());
+  }
+
+  /**
+   * Clear debug log
+   */
+  clearDebugLog() {
+    this.debugLog = [];
+    this.onDebugLog?.(this.getDebugLog());
   }
 
   /**
@@ -94,32 +136,44 @@ export class NovaController {
    * Connect to Nova device
    */
   async connect(): Promise<boolean> {
+    this.addDebugLog('Starting connection...', 'info');
     if (!this.isAvailable() || !navigator.bluetooth) {
+      this.addDebugLog('Web Bluetooth not available', 'error');
       throw new Error('Web Bluetooth is not available in this browser');
     }
 
     try {
+      this.addDebugLog('Requesting device...', 'info');
       // Request device
       const device = await navigator.bluetooth.requestDevice({
         filters: [{ namePrefix: 'Lumenate' }],
         optionalServices: [CONTROL_SERVICE],
       });
+      this.addDebugLog(`Device found: ${device.name || 'Unknown'}`, 'success');
 
       device.addEventListener('gattserverdisconnected', () => {
+        this.addDebugLog('Device disconnected event received', 'warn');
         this.handleDisconnect();
       });
 
       // Connect to GATT server
+      this.addDebugLog('Connecting to GATT server...', 'info');
       const server = await device.gatt?.connect();
       if (!server) {
+        this.addDebugLog('GATT server connection failed', 'error');
         throw new Error('Failed to connect to GATT server');
       }
+      this.addDebugLog('GATT server connected', 'success');
 
       // Get control service
+      this.addDebugLog('Getting control service...', 'info');
       const service = await server.getPrimaryService(CONTROL_SERVICE);
+      this.addDebugLog('Control service found', 'success');
 
       // Get command characteristic
+      this.addDebugLog('Getting command characteristic...', 'info');
       const commandChar = await service.getCharacteristic(COMMAND_CHAR);
+      this.addDebugLog('Command characteristic ready', 'success');
 
       this.updateState({
         isConnected: true,
@@ -127,14 +181,22 @@ export class NovaController {
         commandChar,
       });
 
+      this.addDebugLog('Nova connection complete!', 'success');
       return true;
     } catch (error: any) {
+      let errorMessage = 'Unknown error';
       if (error.name === 'NotFoundError') {
-        throw new Error('Nova device not found. Make sure it is powered on and in pairing mode.');
+        errorMessage = 'Nova device not found. Make sure it is powered on and in pairing mode.';
+        this.addDebugLog(errorMessage, 'error');
+        throw new Error(errorMessage);
       } else if (error.name === 'SecurityError') {
-        throw new Error('Bluetooth permission denied. Please allow access in your browser settings.');
+        errorMessage = 'Bluetooth permission denied. Please allow access in your browser settings.';
+        this.addDebugLog(errorMessage, 'error');
+        throw new Error(errorMessage);
       } else {
-        throw new Error(`Connection failed: ${error.message || error}`);
+        errorMessage = `Connection failed: ${error.message || error}`;
+        this.addDebugLog(errorMessage, 'error');
+        throw new Error(errorMessage);
       }
     }
   }
@@ -161,10 +223,12 @@ export class NovaController {
    * Handle device disconnection
    */
   private handleDisconnect() {
+    this.addDebugLog('Handling disconnect...', 'warn');
     // Stop flicker interval first (don't try to write to disconnected device)
     if (this.flickerInterval) {
       clearInterval(this.flickerInterval);
       this.flickerInterval = null;
+      this.addDebugLog('Flicker interval stopped', 'info');
     }
     
     // Update state (don't call stopFlicker as it tries to write to device)
@@ -175,6 +239,7 @@ export class NovaController {
       commandChar: null,
       currentFrequency: null,
     });
+    this.addDebugLog('Disconnected', 'error');
   }
 
   /**
@@ -182,21 +247,23 @@ export class NovaController {
    * Returns false if device is not connected, true on success
    */
   startFlicker(frequencyHz: number): boolean {
+    this.addDebugLog(`startFlicker called: ${frequencyHz} Hz`, 'info');
+    
     // Guard against concurrent calls
     if (this.isStartingFlicker) {
-      console.warn('Nova flicker start already in progress, skipping');
+      this.addDebugLog('Flicker start already in progress, skipping', 'warn');
       return false;
     }
 
     // First check state flags
     if (!this.state.isConnected || !this.state.commandChar) {
-      console.warn('Nova device not connected (state check), cannot start flicker');
+      this.addDebugLog('Device not connected (state check), cannot start flicker', 'warn');
       return false;
     }
 
     // Then verify actual device connection
     if (!this.state.device?.gatt?.connected) {
-      console.warn('Nova device connection lost (GATT check)');
+      this.addDebugLog('Device connection lost (GATT check)', 'error');
       // Don't call handleDisconnect here - it might already be disconnected
       // Just update state silently
       this.updateState({
@@ -209,11 +276,12 @@ export class NovaController {
 
     // Double-check commandChar is still valid
     if (!this.state.commandChar) {
-      console.warn('Nova command characteristic not available');
+      this.addDebugLog('Command characteristic not available', 'warn');
       return false;
     }
 
     this.isStartingFlicker = true;
+    this.addDebugLog(`Starting flicker at ${frequencyHz} Hz`, 'info');
 
     // Stop any existing flicker
     this.stopFlicker();
@@ -226,9 +294,12 @@ export class NovaController {
 
     // Send initial command
     try {
+      this.addDebugLog('Sending initial 01ff command...', 'info');
       // Use await to ensure the initial command is sent before starting interval
-      this.state.commandChar.writeValue(trigger).catch((error: unknown) => {
-        console.error('Nova initial flicker command failed:', error);
+      this.state.commandChar.writeValue(trigger).then(() => {
+        this.addDebugLog('Initial 01ff command sent successfully', 'success');
+      }).catch((error: unknown) => {
+        this.addDebugLog(`Initial flicker command failed: ${error}`, 'error');
         // Don't disconnect immediately - might be a transient error
         // Just stop the flicker interval
         if (this.flickerInterval) {
@@ -241,7 +312,7 @@ export class NovaController {
         });
       });
     } catch (error) {
-      console.error('Nova initial flicker command error:', error);
+      this.addDebugLog(`Initial flicker command error: ${error}`, 'error');
       // Don't disconnect on initial command error - might be transient
       this.isStartingFlicker = false;
       return false;
@@ -264,14 +335,18 @@ export class NovaController {
         
         await this.state.commandChar.writeValue(trigger);
       } catch (error) {
-        console.error('Nova flicker write error:', error);
         // On error, check if device is still connected
         if (!this.state.device?.gatt?.connected) {
           // Device disconnected, stop flicker
+          this.addDebugLog('Device disconnected during flicker write', 'error');
           this.stopFlicker();
         } else {
           // Transient error, continue trying
           // Don't stop flicker on single write failures
+          // Only log every 10th error to avoid spam
+          if (Math.random() < 0.1) {
+            this.addDebugLog(`Flicker write error (transient): ${error}`, 'warn');
+          }
         }
       }
     }, intervalMs);
@@ -281,6 +356,7 @@ export class NovaController {
       currentFrequency: frequencyHz,
     });
 
+    this.addDebugLog(`Flicker started successfully at ${frequencyHz} Hz`, 'success');
     this.isStartingFlicker = false;
     return true;
   }
