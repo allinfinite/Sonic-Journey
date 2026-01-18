@@ -633,7 +633,18 @@ export class SynthEngine {
     
     // Start or update flicker
     if (!novaState.isFlickering || novaState.currentFrequency !== novaFreq) {
-      novaController.startFlicker(novaFreq);
+      try {
+        const success = novaController.startFlicker(novaFreq);
+        if (!success) {
+          // Device disconnected or not ready, but don't throw error
+          // Just log and continue playback
+          console.warn('Nova flicker could not be started, device may be disconnected');
+        }
+      } catch (error) {
+        // Catch any unexpected errors and log them
+        console.error('Error starting Nova flicker:', error);
+        // Don't throw - allow playback to continue
+      }
     }
   }
 

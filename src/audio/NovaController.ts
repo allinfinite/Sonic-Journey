@@ -160,9 +160,16 @@ export class NovaController {
    * Handle device disconnection
    */
   private handleDisconnect() {
-    this.stopFlicker();
+    // Stop flicker interval first (don't try to write to disconnected device)
+    if (this.flickerInterval) {
+      clearInterval(this.flickerInterval);
+      this.flickerInterval = null;
+    }
+    
+    // Update state (don't call stopFlicker as it tries to write to device)
     this.updateState({
       isConnected: false,
+      isFlickering: false,
       device: null,
       commandChar: null,
       currentFrequency: null,
@@ -171,10 +178,19 @@ export class NovaController {
 
   /**
    * Start flickering at specified frequency
+   * Returns false if device is not connected, true on success
    */
-  startFlicker(frequencyHz: number): void {
+  startFlicker(frequencyHz: number): boolean {
     if (!this.state.isConnected || !this.state.commandChar) {
-      throw new Error('Nova device not connected');
+      console.warn('Nova device not connected, cannot start flicker');
+      return false;
+    }
+
+    // Verify device is still connected
+    if (!this.state.device?.gatt?.connected) {
+      console.warn('Nova device connection lost');
+      this.handleDisconnect();
+      return false;
     }
 
     // Stop any existing flicker
@@ -186,16 +202,54 @@ export class NovaController {
     // Send 01ff command repeatedly to create flicker
     const trigger = new Uint8Array([0x01, 0xff]);
 
+    // Send initial command
+    try {
+      // Use await to ensure the initial command is sent before starting interval
+      this.state.commandChar.writeValue(trigger).catch((error: unknown) => {
+        console.error('Nova initial flicker command failed:', error);
+        // Don't disconnect immediately - might be a transient error
+        // Just stop the flicker interval
+        if (this.flickerInterval) {
+          clearInterval(this.flickerInterval);
+          this.flickerInterval = null;
+        }
+        this.updateState({
+          isFlickering: false,
+          currentFrequency: null,
+        });
+      });
+    } catch (error) {
+      console.error('Nova initial flicker command error:', error);
+      // Don't disconnect on initial command error - might be transient
+      return false;
+    }
+
     this.flickerInterval = setInterval(async () => {
       try {
-        if (this.state.commandChar && this.state.isConnected) {
-          await this.state.commandChar.writeValue(trigger);
-        } else {
+        // Check connection state before each write
+        if (!this.state.device?.gatt?.connected) {
+          // Device disconnected, stop flicker but don't call handleDisconnect
+          // (it might already be handling the disconnect event)
           this.stopFlicker();
+          return;
         }
+        
+        if (!this.state.commandChar) {
+          this.stopFlicker();
+          return;
+        }
+        
+        await this.state.commandChar.writeValue(trigger);
       } catch (error) {
-        console.error('Nova flicker error:', error);
-        this.stopFlicker();
+        console.error('Nova flicker write error:', error);
+        // On error, check if device is still connected
+        if (!this.state.device?.gatt?.connected) {
+          // Device disconnected, stop flicker
+          this.stopFlicker();
+        } else {
+          // Transient error, continue trying
+          // Don't stop flicker on single write failures
+        }
       }
     }, intervalMs);
 
@@ -203,6 +257,8 @@ export class NovaController {
       isFlickering: true,
       currentFrequency: frequencyHz,
     });
+
+    return true;
   }
 
   /**
