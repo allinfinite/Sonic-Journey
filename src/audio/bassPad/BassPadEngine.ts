@@ -208,6 +208,32 @@ export class BassPadEngine {
   }
 
   /**
+   * Find touch point at a given position (within tolerance)
+   */
+  getTouchAtPosition(x: number, y: number, tolerance: number = 0.05): TouchPoint | null {
+    for (const touch of this.activeTouches.values()) {
+      const dx = Math.abs(touch.x - x);
+      const dy = Math.abs(touch.y - y);
+      if (dx <= tolerance && dy <= tolerance) {
+        return touch;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Stop touch at a given position (for toggle behavior)
+   */
+  stopTouchAtPosition(x: number, y: number, tolerance: number = 0.05): boolean {
+    const touch = this.getTouchAtPosition(x, y, tolerance);
+    if (touch) {
+      this.stopTouch(touch.id);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Get all active touch points (for visualization)
    */
   getActiveTouches(): TouchPoint[] {

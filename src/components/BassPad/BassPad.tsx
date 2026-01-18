@@ -12,6 +12,7 @@ export function BassPad() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<BassPadEngine | null>(null);
   const [activeTouches, setActiveTouches] = useState<TouchPoint[]>([]);
+  const touchActionRef = useRef<'create' | 'delete' | null>(null);
 
   // Initialize engine on mount
   useEffect(() => {
@@ -64,42 +65,62 @@ export function BassPad() {
     // Set pointer capture for this element
     container.setPointerCapture(e.pointerId);
 
-    // Start tone (audio will be initialized automatically on first touch)
-    await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
+    // Check if there's already a tone at this position (toggle behavior)
+    const existingTouch = engineRef.current.getTouchAtPosition(coords.x, coords.y, 0.05);
+    if (existingTouch) {
+      // Remove existing tone at this position
+      engineRef.current.stopTouch(existingTouch.id);
+      touchActionRef.current = 'delete';
+    } else {
+      // Start new tone (audio will be initialized automatically on first touch)
+      await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
+      touchActionRef.current = 'create';
+    }
+    
     updateActiveTouches();
   }, [getNormalizedCoords, updateActiveTouches]);
 
   // Handle pointer move (touch/click drag)
+  // Only update position if we created a tone (not if we deleted one)
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    if (!engineRef.current) return;
+    if (!engineRef.current || touchActionRef.current !== 'create') return;
 
     const coords = getNormalizedCoords(e);
     if (!coords) return;
 
-    // Update tone position
+    // Update tone position (only if we created a tone, not deleted one)
     engineRef.current.updateTouch(e.pointerId, coords.x, coords.y);
     updateActiveTouches();
   }, [getNormalizedCoords, updateActiveTouches]);
 
   // Handle pointer up (touch/click end)
+  // Tones now sustain - we just release pointer capture but keep tone playing
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const container = containerRef.current;
-    if (!container || !engineRef.current) return;
+    if (!container) return;
 
-    // Release pointer capture
+    // Release pointer capture (tone continues playing)
     container.releasePointerCapture(e.pointerId);
-
-    // Stop tone
-    engineRef.current.stopTouch(e.pointerId);
-    updateActiveTouches();
-  }, [updateActiveTouches]);
+    // Note: We don't stop the tone here - it sustains indefinitely
+    
+    // Reset touch action tracking
+    touchActionRef.current = null;
+  }, []);
 
   // Handle pointer cancel (touch interrupted)
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
     handlePointerUp(e);
   }, [handlePointerUp]);
+
+  // Handle clear all tones
+  const handleClearAll = useCallback(() => {
+    if (engineRef.current) {
+      engineRef.current.stopAllTouches();
+      updateActiveTouches();
+    }
+  }, [updateActiveTouches]);
 
   // Draw visual feedback on canvas
   const drawCanvas = useCallback(() => {
@@ -178,7 +199,7 @@ export function BassPad() {
       <div className="bass-pad-header">
         <h2 className="bass-pad-title">Deep Bass Touch Pad</h2>
         <p className="bass-pad-subtitle">
-          Touch or click to play sub-bass tones • X = Frequency (20-80 Hz) • Y = Filter
+          Touch to add tones, touch again to remove • X = Frequency (20-80 Hz) • Y = Filter
         </p>
       </div>
 
@@ -201,23 +222,35 @@ export function BassPad() {
           {activeTouches.length === 0 && (
             <div className="bass-pad-instructions">
               <div className="instruction-text">
-                Touch or drag to play deep bass tones
+                Touch to add a tone, touch again to remove it
               </div>
               <div className="instruction-hint">
-                Multiple touches create layered tones
+                Tones sustain after you lift your finger
               </div>
             </div>
           )}
         </div>
 
-        {/* Info panel */}
+        {/* Info panel and controls */}
         {activeTouches.length > 0 && (
           <div className="bass-pad-info">
-            <div className="info-title">Active Tones: {activeTouches.length}</div>
+            <div className="info-header">
+              <div className="info-title">Active Tones: {activeTouches.length}</div>
+              <button
+                onClick={handleClearAll}
+                className="clear-all-btn"
+                title="Clear all tones"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+                Clear All
+              </button>
+            </div>
             <div className="info-list">
               {activeTouches.map(touch => (
                 <div key={touch.id} className="info-item">
-                  <span className="info-label">Touch {touch.id}:</span>
+                  <span className="info-label">Tone {touch.id}:</span>
                   <span className="info-value">
                     {formatFrequency(touch.frequency)} • {touch.filterCutoff.toFixed(0)} Hz filter
                   </span>
@@ -306,11 +339,37 @@ export function BassPad() {
           border: 1px solid var(--color-border);
         }
 
+        .info-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
         .info-title {
           font-size: 1rem;
           font-weight: 600;
           color: var(--color-text);
-          margin-bottom: 1rem;
+        }
+
+        .clear-all-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--color-error);
+          background: transparent;
+          border: 1px solid var(--color-error);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .clear-all-btn:hover {
+          background: var(--color-error);
+          color: white;
         }
 
         .info-list {
