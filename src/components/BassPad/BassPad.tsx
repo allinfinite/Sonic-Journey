@@ -15,6 +15,7 @@ export function BassPad() {
   const touchActionRef = useRef<'create' | 'delete' | null>(null);
   const nextToneIdRef = useRef<number>(1000); // Start from 1000 to avoid conflicts with pointer IDs
   const [addMode, setAddMode] = useState(false); // When true, clicking pad always adds (doesn't remove existing)
+  const pointerToToneIdRef = useRef<Map<number, number>>(new Map()); // Map pointer ID to tone ID for add mode
 
   // Initialize engine on mount
   useEffect(() => {
@@ -76,6 +77,8 @@ export function BassPad() {
       const toneId = nextToneIdRef.current++;
       await engineRef.current.startTouch(toneId, coords.x, coords.y);
       touchActionRef.current = 'create';
+      // Store mapping from pointer ID to tone ID so we can update it on drag
+      pointerToToneIdRef.current.set(e.pointerId, toneId);
       // Disable add mode after adding one tone
       setAddMode(false);
     } else {
@@ -88,6 +91,8 @@ export function BassPad() {
         // Start new tone (audio will be initialized automatically on first touch)
         await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
         touchActionRef.current = 'create';
+        // In normal mode, pointer ID = tone ID
+        pointerToToneIdRef.current.set(e.pointerId, e.pointerId);
       }
     }
     
@@ -103,8 +108,11 @@ export function BassPad() {
     const coords = getNormalizedCoords(e);
     if (!coords) return;
 
+    // Get the correct tone ID for this pointer (handles add mode where pointer ID != tone ID)
+    const toneId = pointerToToneIdRef.current.get(e.pointerId) ?? e.pointerId;
+    
     // Update tone position (only if we created a tone, not deleted one)
-    engineRef.current.updateTouch(e.pointerId, coords.x, coords.y);
+    engineRef.current.updateTouch(toneId, coords.x, coords.y);
     updateActiveTouches();
   }, [getNormalizedCoords, updateActiveTouches]);
 
@@ -121,6 +129,8 @@ export function BassPad() {
     
     // Reset touch action tracking
     touchActionRef.current = null;
+    // Clean up pointer to tone ID mapping (pointer is done, tone continues)
+    pointerToToneIdRef.current.delete(e.pointerId);
   }, []);
 
   // Handle pointer cancel (touch interrupted)
