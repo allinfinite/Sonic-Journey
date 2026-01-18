@@ -336,36 +336,20 @@ export class NovaController {
       return false;
     }
 
+    // Match ble-web.html exactly: simple check, silent fail on error
     this.flickerInterval = setInterval(async () => {
+      if (!this.state.commandChar) {
+        if (this.flickerInterval) {
+          clearInterval(this.flickerInterval);
+          this.flickerInterval = null;
+        }
+        return;
+      }
       try {
-        // Check connection state before each write
-        if (!this.state.device?.gatt?.connected) {
-          // Device disconnected, stop flicker but don't call handleDisconnect
-          // (it might already be handling the disconnect event)
-          this.stopFlicker();
-          return;
-        }
-        
-        if (!this.state.commandChar) {
-          this.stopFlicker();
-          return;
-        }
-        
         await this.state.commandChar.writeValue(trigger);
       } catch (error) {
-        // On error, check if device is still connected
-        if (!this.state.device?.gatt?.connected) {
-          // Device disconnected, stop flicker
-          this.addDebugLog('Device disconnected during flicker write', 'error');
-          this.stopFlicker();
-        } else {
-          // Transient error, continue trying
-          // Don't stop flicker on single write failures
-          // Only log every 10th error to avoid spam
-          if (Math.random() < 0.1) {
-            this.addDebugLog(`Flicker write error (transient): ${error}`, 'warn');
-          }
-        }
+        // Silent fail - just like ble-web.html
+        // The device disconnect event will handle cleanup
       }
     }, intervalMs);
 
