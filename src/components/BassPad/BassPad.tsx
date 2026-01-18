@@ -13,7 +13,7 @@ export function BassPad() {
   const engineRef = useRef<BassPadEngine | null>(null);
   const [activeTouches, setActiveTouches] = useState<TouchPoint[]>([]);
   const touchActionRef = useRef<'create' | 'delete' | null>(null);
-  const [mode, setMode] = useState<'toggle' | 'add'>('toggle');
+  const nextToneIdRef = useRef<number>(1000); // Start from 1000 to avoid conflicts with pointer IDs
 
   // Initialize engine on mount
   useEffect(() => {
@@ -66,21 +66,21 @@ export function BassPad() {
     // Set pointer capture for this element
     container.setPointerCapture(e.pointerId);
 
-    // Check if there's already a tone at this position
+    // Check if there's already a tone at this position (toggle behavior)
     const existingTouch = engineRef.current.getTouchAtPosition(coords.x, coords.y, 0.05);
     
-    if (mode === 'toggle' && existingTouch) {
-      // Toggle mode: Remove existing tone at this position
+    if (existingTouch) {
+      // Remove existing tone at this position
       engineRef.current.stopTouch(existingTouch.id);
       touchActionRef.current = 'delete';
     } else {
-      // Add mode OR no existing tone: Start new tone (audio will be initialized automatically on first touch)
+      // Start new tone (audio will be initialized automatically on first touch)
       await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
       touchActionRef.current = 'create';
     }
     
     updateActiveTouches();
-  }, [getNormalizedCoords, updateActiveTouches, mode]);
+  }, [getNormalizedCoords, updateActiveTouches]);
 
   // Handle pointer move (touch/click drag)
   // Only update position if we created a tone (not if we deleted one)
@@ -122,6 +122,21 @@ export function BassPad() {
       engineRef.current.stopAllTouches();
       updateActiveTouches();
     }
+  }, [updateActiveTouches]);
+
+  // Handle add tone button - adds a tone at center position
+  const handleAddTone = useCallback(async () => {
+    if (!engineRef.current) return;
+
+    // Add tone at center of pad
+    const x = 0.5;
+    const y = 0.5;
+    
+    // Generate unique ID for button-added tones
+    const toneId = nextToneIdRef.current++;
+    
+    await engineRef.current.startTouch(toneId, x, y);
+    updateActiveTouches();
   }, [updateActiveTouches]);
 
   // Draw visual feedback on canvas
@@ -204,23 +219,19 @@ export function BassPad() {
           Touch to add tones, touch again to remove • X = Frequency (20-80 Hz) • Y = Filter
         </p>
         
-        {/* Mode toggle */}
-        <div className="bass-pad-mode-toggle">
-          <button
-            onClick={() => setMode('toggle')}
-            className={`mode-btn ${mode === 'toggle' ? 'active' : ''}`}
-            title="Toggle mode: Click to add, click again to remove"
-          >
-            Toggle Mode
-          </button>
-          <button
-            onClick={() => setMode('add')}
-            className={`mode-btn ${mode === 'add' ? 'active' : ''}`}
-            title="Add mode: Always adds tones, never deletes"
-          >
-            Add Mode
-          </button>
-        </div>
+        {/* Add Tone button */}
+        <button
+          onClick={handleAddTone}
+          className="add-tone-btn"
+          title="Add a new tone at center position"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          Add Tone
+        </button>
       </div>
 
       <div className="bass-pad-content">
@@ -305,35 +316,30 @@ export function BassPad() {
           margin-bottom: 1rem;
         }
 
-        .bass-pad-mode-toggle {
+        .add-tone-btn {
           display: flex;
-          gap: 0.5rem;
+          align-items: center;
           justify-content: center;
-          margin-top: 1rem;
-        }
-
-        .mode-btn {
-          padding: 0.5rem 1rem;
-          font-size: 0.85rem;
+          gap: 0.5rem;
+          margin: 1rem auto 0;
+          padding: 0.75rem 1.5rem;
+          font-size: 0.9rem;
           font-weight: 500;
-          background: var(--color-surface-light);
-          color: var(--color-text-muted);
-          border: 1px solid var(--color-border);
-          border-radius: 6px;
+          background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+          color: white;
+          border: none;
+          border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
         }
 
-        .mode-btn:hover {
-          background: var(--color-surface-light);
-          color: var(--color-text);
-          border-color: var(--color-primary);
+        .add-tone-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4);
         }
 
-        .mode-btn.active {
-          background: var(--color-primary);
-          color: white;
-          border-color: var(--color-primary);
+        .add-tone-btn:active {
+          transform: translateY(0);
         }
 
         .bass-pad-content {
