@@ -80,28 +80,47 @@ export class EnhancedMelodyEngine {
   async initialize(): Promise<void> {
     if (this.isInitialized || typeof window === 'undefined') return;
 
-    // Start Tone.js context
-    await Tone.start();
+    try {
+      // Start Tone.js context
+      await Tone.start();
+      
+      // Ensure context is running
+      if (Tone.context.state !== 'running') {
+        await Tone.context.resume();
+      }
 
-    // Create effects chain
-    // Reverb takes decay time in seconds (convert from 0-1 amount to 1-4 seconds)
-    const reverbDecay = 1 + this.settings.reverbAmount * 3;
-    this.reverb = new Tone.Reverb(reverbDecay).toDestination();
+      // Create effects chain
+      // Reverb takes decay time in seconds (convert from 0-1 amount to 1-4 seconds)
+      const reverbDecay = 1 + this.settings.reverbAmount * 3;
+      this.reverb = new Tone.Reverb(reverbDecay).toDestination();
+      // Generate reverb impulse response (this is async)
+      await this.reverb.generate();
 
-    this.delay = new Tone.FeedbackDelay({
-      delayTime: this.settings.delayTime,
-      feedback: this.settings.delayFeedback,
-    }).connect(this.reverb);
+      this.delay = new Tone.FeedbackDelay({
+        delayTime: this.settings.delayTime,
+        feedback: this.settings.delayFeedback,
+      }).connect(this.reverb);
 
-    this.chorus = new Tone.Chorus({
-      frequency: this.settings.chorusRate,
-      delayTime: 3.5,
-      depth: this.settings.chorusDepth,
-    }).connect(this.delay);
+      this.chorus = new Tone.Chorus({
+        frequency: this.settings.chorusRate,
+        delayTime: 3.5,
+        depth: this.settings.chorusDepth,
+      }).connect(this.delay);
 
-    this.masterVolume = new Tone.Volume(this.config.intensity * 20 - 20).connect(this.chorus);
+      // Volume: convert 0-1 intensity to dB, with minimum of -12dB (not too quiet)
+    const volumeDb = Math.max(-12, this.config.intensity * 20 - 20);
+    this.masterVolume = new Tone.Volume(volumeDb).connect(this.chorus);
 
-    this.isInitialized = true;
+      // Start Tone.js Transport
+      if (Tone.Transport.state !== 'started') {
+        Tone.Transport.start();
+      }
+
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('EnhancedMelodyEngine: Failed to initialize', error);
+      throw error;
+    }
   }
 
   /**
@@ -248,7 +267,10 @@ export class EnhancedMelodyEngine {
       this.config.frequencyMax
     );
 
-    if (this.scaleNotes.length === 0) return;
+    if (this.scaleNotes.length === 0) {
+      console.warn('EnhancedMelodyEngine: No scale notes generated', { rootFreq, scale, frequencyMin: this.config.frequencyMin, frequencyMax: this.config.frequencyMax });
+      return;
+    }
 
     // Create synths for this style
     this.createSynths(style);
@@ -261,24 +283,58 @@ export class EnhancedMelodyEngine {
 
     // Create sequence
     const sequence = this.createSequence(style);
+    
+    if (sequence.length === 0) {
+      console.warn('EnhancedMelodyEngine: Empty sequence created', { style, scaleNotes: this.scaleNotes });
+      return;
+    }
 
     // Stop existing sequencer
     if (this.sequencer) {
       this.sequencer.stop();
       this.sequencer.dispose();
+      this.sequencer = null;
     }
 
     // Create new sequencer
     const synth = this.synths[0];
+    if (!synth) {
+      console.warn('EnhancedMelodyEngine: No synth available');
+      return;
+    }
+
+    // Ensure Transport is running
+    if (Tone.Transport.state !== 'started') {
+      Tone.Transport.start();
+    }
+
+    // Create sequencer with proper timing
+    // Tone.Sequence uses Transport time, and the interval should be in seconds or time notation
     this.sequencer = new Tone.Sequence(
       (time, note) => {
-        synth.triggerAttackRelease(note, noteInterval * 0.8, time);
+        if (synth && note) {
+          try {
+            synth.triggerAttackRelease(note, noteInterval * 0.8, time);
+          } catch (error) {
+            console.error('EnhancedMelodyEngine: Error triggering note', error, { note, time });
+          }
+        }
       },
       sequence,
       noteInterval
     );
 
+    // Start the sequencer immediately
     this.sequencer.start(0);
+    
+    // Also trigger an immediate test note to verify synth is working
+    if (sequence.length > 0) {
+      try {
+        synth.triggerAttackRelease(sequence[0], noteInterval * 0.8, Tone.now());
+      } catch (error) {
+        console.error('EnhancedMelodyEngine: Error triggering test note', error);
+      }
+    }
   }
 
   /**
@@ -356,7 +412,9 @@ export class EnhancedMelodyEngine {
    */
   setVolume(volume: number): void {
     if (this.masterVolume) {
-      this.masterVolume.volume.value = volume * 20 - 20;
+      // Ensure volume is audible (minimum -12dB)
+      const volumeDb = Math.max(-12, volume * 20 - 20);
+      this.masterVolume.volume.value = volumeDb;
     }
   }
 

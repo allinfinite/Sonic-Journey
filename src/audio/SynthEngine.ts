@@ -997,6 +997,16 @@ export class SynthEngine {
       }
       return;
     }
+    
+    // Debug: log when melody should be enabled
+    if (!this.melody.enabled) {
+      console.log('Enabling melody layer', {
+        melody_layer: this.journeyConfig?.layers?.melody_layer,
+        melody_enabled: phase.melody_enabled,
+        style: phase.melody_style || 'mixed',
+        scale: phase.melody_scale || 'pentatonic_minor',
+      });
+    }
 
     // Get melody settings from phase or use defaults
     const style = phase.melody_style || 'mixed';
@@ -1045,6 +1055,14 @@ export class SynthEngine {
 
       // Initialize and start
       try {
+        // Set Tone.js to use the same AudioContext
+        if (this.ctx && typeof window !== 'undefined') {
+          const Tone = await import('tone');
+          if (Tone.context.state !== 'running') {
+            await Tone.context.resume();
+          }
+        }
+        
         await this.melody.enhancedEngine.initialize();
         await this.melody.enhancedEngine.start(
           foundationFreq,
@@ -1054,7 +1072,8 @@ export class SynthEngine {
           entrainmentMode
         );
       } catch (error) {
-        // Fallback: continue without enhanced melody
+        // Log error for debugging
+        console.error('Failed to start enhanced melody engine:', error);
         return;
       }
     }
