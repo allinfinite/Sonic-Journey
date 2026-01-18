@@ -3,8 +3,9 @@
  */
 
 import { useJourneyStore } from '../../stores/journeyStore';
-import type { RhythmMode } from '../../types/journey';
-import { mapFrequencyToNova, mapRhythmModeToNova, novaController } from '../../audio/NovaController';
+import type { RhythmMode, NovaPattern } from '../../types/journey';
+import { NOVA_PATTERN_PRESETS } from '../../types/journey';
+import { mapRhythmModeToNova, novaController } from '../../audio/NovaController';
 
 const RHYTHM_OPTIONS: { value: RhythmMode; label: string; description: string }[] = [
   { value: 'still', label: 'Still', description: 'No rhythmic pulse' },
@@ -13,6 +14,46 @@ const RHYTHM_OPTIONS: { value: RhythmMode; label: string; description: string }[
   { value: 'theta', label: 'Theta Waves', description: '5 Hz meditation' },
   { value: 'alpha', label: 'Alpha Waves', description: '10 Hz relaxation' },
 ];
+
+// Pattern options for the Nova flicker UI
+const NOVA_PATTERN_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: 'auto', label: 'Auto', description: 'Automatic based on rhythm mode' },
+  { value: 'steady', label: 'Steady', description: 'Constant frequency' },
+  { value: 'sweep', label: 'Sweep', description: 'Frequency transition' },
+  { value: 'wave', label: 'Wave', description: 'Smooth oscillation' },
+  { value: 'burst', label: 'Burst', description: 'Flash groups with pauses' },
+  { value: 'rhythm', label: 'Rhythm', description: 'Custom pattern' },
+];
+
+// Get display text for a pattern
+function getPatternDescription(pattern: NovaPattern | undefined, rhythmMode?: RhythmMode): string {
+  if (!pattern) {
+    if (rhythmMode === 'breathing') return 'Wave ~10 Hz (organic)';
+    if (rhythmMode === 'heartbeat') return 'Heartbeat rhythm';
+    if (rhythmMode === 'theta') return 'Wave ~6 Hz (gentle)';
+    if (rhythmMode === 'alpha') return 'Wave ~10 Hz (visuals)';
+    return 'Auto-selected based on mode';
+  }
+  
+  switch (pattern.type) {
+    case 'steady':
+      return `Steady ${pattern.baseFrequency} Hz`;
+    case 'sweep':
+      return `Sweep ${pattern.baseFrequency}→${pattern.targetFrequency} Hz`;
+    case 'wave':
+      return `Wave ${pattern.baseFrequency}±${pattern.waveAmplitude || 2} Hz`;
+    case 'burst':
+      return `Burst ${pattern.burstCount || 5}× @ ${pattern.baseFrequency} Hz`;
+    case 'rhythm':
+      return `Rhythm @ ${pattern.baseFrequency} Hz`;
+    case 'pulse':
+      return `Pulse ${Math.round((pattern.dutyCycle || 0.5) * 100)}% @ ${pattern.baseFrequency} Hz`;
+    case 'random':
+      return `Random ~${pattern.baseFrequency} Hz`;
+    default:
+      return `${pattern.type} @ ${pattern.baseFrequency} Hz`;
+  }
+}
 
 export function PhaseControls() {
   const {
@@ -220,7 +261,7 @@ export function PhaseControls() {
 
       {/* Nova Flicker Control */}
       {novaController.isAvailable() && (
-        <div className="space-y-2 pt-2 border-t border-[var(--color-surface-light)]">
+        <div className="space-y-3 pt-4 border-t border-[var(--color-surface-light)]">
           <div className="flex items-center justify-between">
             <label className="text-sm text-[var(--color-text-muted)] flex items-center gap-2">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -234,7 +275,7 @@ export function PhaseControls() {
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
               </svg>
-              Nova Flicker
+              Nova Light Mask
             </label>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -249,14 +290,218 @@ export function PhaseControls() {
               <div className="w-11 h-6 bg-[var(--color-surface-light)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
             </label>
           </div>
+          
           {phase.nova_enabled !== false && (journey.nova_enabled !== false) && (
-            <div className="text-xs text-[var(--color-text-muted)] pl-6">
-              {phase.nova_frequency 
-                ? `Custom: ${phase.nova_frequency} Hz`
-                : phase.rhythm_mode
-                  ? `Auto: ${mapRhythmModeToNova(phase.rhythm_mode)} Hz (from ${phase.rhythm_mode})`
-                  : `Auto: ${mapFrequencyToNova((phase.frequency.start + phase.frequency.end) / 2)} Hz (from audio)`
-              }
+            <div className="space-y-3 pl-6">
+              {/* Pattern Type Selection */}
+              <div className="space-y-2">
+                <label className="text-xs text-[var(--color-text-muted)]">Pattern</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {NOVA_PATTERN_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        if (option.value === 'auto') {
+                          // Remove custom pattern, let auto-selection work
+                          updatePhase(selectedPhaseIndex, { 
+                            nova_pattern: undefined,
+                            nova_frequency: undefined 
+                          });
+                        } else if (option.value === 'steady') {
+                          // Set simple frequency-based (no pattern)
+                          const baseFreq = phase.entrainment_rate || mapRhythmModeToNova(phase.rhythm_mode || 'alpha');
+                          updatePhase(selectedPhaseIndex, { 
+                            nova_pattern: undefined,
+                            nova_frequency: baseFreq
+                          });
+                        } else {
+                          // Create pattern of selected type
+                          const baseFreq = phase.entrainment_rate || mapRhythmModeToNova(phase.rhythm_mode || 'alpha');
+                          let pattern: NovaPattern;
+                          switch (option.value) {
+                            case 'sweep':
+                              pattern = { type: 'sweep', baseFrequency: baseFreq, targetFrequency: baseFreq * 0.6 };
+                              break;
+                            case 'wave':
+                              pattern = { type: 'wave', baseFrequency: baseFreq, waveAmplitude: 2, wavePeriod: 6000 };
+                              break;
+                            case 'burst':
+                              pattern = { type: 'burst', baseFrequency: baseFreq, burstCount: 5, burstGap: 500 };
+                              break;
+                            case 'rhythm':
+                              pattern = { type: 'rhythm', baseFrequency: baseFreq, rhythmPattern: [100, 200, 100, 600] };
+                              break;
+                            default:
+                              pattern = { type: 'steady', baseFrequency: baseFreq };
+                          }
+                          updatePhase(selectedPhaseIndex, { nova_pattern: pattern, nova_frequency: undefined });
+                        }
+                      }}
+                      className={`px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                        (option.value === 'auto' && !phase.nova_pattern && !phase.nova_frequency) ||
+                        (option.value === 'steady' && !phase.nova_pattern && phase.nova_frequency) ||
+                        (phase.nova_pattern?.type === option.value)
+                          ? 'bg-[var(--color-primary)] text-white'
+                          : 'bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-light)]/80'
+                      }`}
+                      title={option.description}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Pattern Description */}
+              <div className="text-xs text-[var(--color-text-muted)]">
+                {getPatternDescription(phase.nova_pattern, phase.rhythm_mode)}
+              </div>
+              
+              {/* Pattern-specific controls */}
+              {phase.nova_pattern && (
+                <div className="space-y-2">
+                  {/* Base Frequency */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-[var(--color-text-muted)] w-20">Base Hz</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="40"
+                      step="1"
+                      value={phase.nova_pattern.baseFrequency}
+                      onChange={(e) => {
+                        const newPattern = { ...phase.nova_pattern!, baseFrequency: Number(e.target.value) };
+                        updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                      }}
+                      className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-warning)]"
+                    />
+                    <span className="text-xs text-[var(--color-text)] w-8">{phase.nova_pattern.baseFrequency}</span>
+                  </div>
+                  
+                  {/* Sweep: Target Frequency */}
+                  {phase.nova_pattern.type === 'sweep' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-[var(--color-text-muted)] w-20">Target Hz</label>
+                      <input
+                        type="range"
+                        min="1"
+                        max="40"
+                        step="1"
+                        value={phase.nova_pattern.targetFrequency || phase.nova_pattern.baseFrequency}
+                        onChange={(e) => {
+                          const newPattern = { ...phase.nova_pattern!, targetFrequency: Number(e.target.value) };
+                          updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                        }}
+                        className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+                      />
+                      <span className="text-xs text-[var(--color-text)] w-8">{phase.nova_pattern.targetFrequency || phase.nova_pattern.baseFrequency}</span>
+                    </div>
+                  )}
+                  
+                  {/* Wave: Amplitude */}
+                  {phase.nova_pattern.type === 'wave' && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-[var(--color-text-muted)] w-20">Wave ±Hz</label>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="5"
+                          step="0.5"
+                          value={phase.nova_pattern.waveAmplitude || 2}
+                          onChange={(e) => {
+                            const newPattern = { ...phase.nova_pattern!, waveAmplitude: Number(e.target.value) };
+                            updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                          }}
+                          className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+                        />
+                        <span className="text-xs text-[var(--color-text)] w-8">±{phase.nova_pattern.waveAmplitude || 2}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-[var(--color-text-muted)] w-20">Period</label>
+                        <input
+                          type="range"
+                          min="2000"
+                          max="15000"
+                          step="1000"
+                          value={phase.nova_pattern.wavePeriod || 5000}
+                          onChange={(e) => {
+                            const newPattern = { ...phase.nova_pattern!, wavePeriod: Number(e.target.value) };
+                            updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                          }}
+                          className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+                        />
+                        <span className="text-xs text-[var(--color-text)] w-8">{((phase.nova_pattern.wavePeriod || 5000) / 1000).toFixed(0)}s</span>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Burst: Count and Gap */}
+                  {phase.nova_pattern.type === 'burst' && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-[var(--color-text-muted)] w-20">Flashes</label>
+                        <input
+                          type="range"
+                          min="2"
+                          max="10"
+                          step="1"
+                          value={phase.nova_pattern.burstCount || 5}
+                          onChange={(e) => {
+                            const newPattern = { ...phase.nova_pattern!, burstCount: Number(e.target.value) };
+                            updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                          }}
+                          className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+                        />
+                        <span className="text-xs text-[var(--color-text)] w-8">{phase.nova_pattern.burstCount || 5}×</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-[var(--color-text-muted)] w-20">Gap</label>
+                        <input
+                          type="range"
+                          min="200"
+                          max="1500"
+                          step="100"
+                          value={phase.nova_pattern.burstGap || 500}
+                          onChange={(e) => {
+                            const newPattern = { ...phase.nova_pattern!, burstGap: Number(e.target.value) };
+                            updatePhase(selectedPhaseIndex, { nova_pattern: newPattern });
+                          }}
+                          className="flex-1 h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-accent)]"
+                        />
+                        <span className="text-xs text-[var(--color-text)] w-8">{phase.nova_pattern.burstGap || 500}ms</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              
+              {/* Quick Pattern Presets */}
+              <div className="pt-2">
+                <label className="text-xs text-[var(--color-text-muted)] block mb-2">Quick Presets</label>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { key: 'organic_theta', label: 'Organic θ' },
+                    { key: 'organic_alpha', label: 'Organic α' },
+                    { key: 'heartbeat', label: 'Heartbeat' },
+                    { key: 'alpha_burst', label: 'α Burst' },
+                    { key: 'alpha_to_theta', label: 'α→θ' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        const preset = NOVA_PATTERN_PRESETS[key];
+                        if (preset) {
+                          updatePhase(selectedPhaseIndex, { nova_pattern: { ...preset } });
+                        }
+                      }}
+                      className="px-2 py-1 rounded text-xs bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -26,6 +26,82 @@ export interface AmplitudeRange {
   end: number;
 }
 
+// Nova Pattern Types for complex flicker sequences
+// Instead of just steady flickering, patterns create dynamic, evolving light experiences
+export type NovaPatternType = 
+  | 'steady'   // Fixed frequency (current behavior)
+  | 'sweep'    // Ramp from one frequency to another
+  | 'burst'    // Groups of rapid flashes with pauses
+  | 'rhythm'   // Custom on/off patterns (e.g., heartbeat)
+  | 'wave'     // Sinusoidal frequency modulation
+  | 'pulse'    // Duty cycle variation for intensity simulation
+  | 'random';  // Slight timing variations for organic feel
+
+// Nova Pattern Configuration
+export interface NovaPattern {
+  type: NovaPatternType;
+  baseFrequency: number;          // Starting/base frequency in Hz
+  
+  // Sweep pattern options
+  targetFrequency?: number;       // Ending frequency for sweeps (Hz)
+  
+  // Burst pattern options
+  burstCount?: number;            // Number of flashes per burst (default: 5)
+  burstGap?: number;              // Gap between bursts in ms (default: 500)
+  
+  // Rhythm pattern options
+  rhythmPattern?: number[];       // Custom timing: [on, off, on, off...] in ms
+  
+  // Wave pattern options (sinusoidal frequency modulation)
+  waveAmplitude?: number;         // +/- Hz variation from base (default: 2)
+  wavePeriod?: number;            // Period of wave in ms (default: 5000)
+  
+  // Pulse pattern options (duty cycle for intensity simulation)
+  dutyCycle?: number;             // 0-1, ratio of on-time (default: 0.5)
+  
+  // Random variation (can be combined with other patterns)
+  randomVariation?: number;       // Max jitter in ms (default: 0)
+}
+
+// Preset Nova patterns for common use cases
+export const NOVA_PATTERN_PRESETS: Record<string, NovaPattern> = {
+  // Steady patterns for each brain state
+  steady_delta: { type: 'steady', baseFrequency: 3 },
+  steady_theta: { type: 'steady', baseFrequency: 6 },
+  steady_alpha: { type: 'steady', baseFrequency: 10 },
+  steady_beta: { type: 'steady', baseFrequency: 15 },
+  steady_gamma: { type: 'steady', baseFrequency: 40 },
+  
+  // Sweep patterns for transitions
+  alpha_to_theta: { type: 'sweep', baseFrequency: 10, targetFrequency: 6 },
+  theta_to_delta: { type: 'sweep', baseFrequency: 6, targetFrequency: 3 },
+  beta_to_alpha: { type: 'sweep', baseFrequency: 15, targetFrequency: 10 },
+  delta_to_alpha: { type: 'sweep', baseFrequency: 3, targetFrequency: 10 },
+  
+  // Burst patterns for attention/activation
+  alpha_burst: { type: 'burst', baseFrequency: 10, burstCount: 5, burstGap: 500 },
+  theta_burst: { type: 'burst', baseFrequency: 6, burstCount: 3, burstGap: 800 },
+  rapid_burst: { type: 'burst', baseFrequency: 15, burstCount: 7, burstGap: 300 },
+  
+  // Rhythm patterns for organic feel
+  heartbeat: { type: 'rhythm', baseFrequency: 10, rhythmPattern: [100, 200, 100, 600] }, // lub-dub
+  breathing: { type: 'rhythm', baseFrequency: 8, rhythmPattern: [2000, 500, 2000, 500] }, // slow in-out
+  triplet: { type: 'rhythm', baseFrequency: 10, rhythmPattern: [100, 100, 100, 100, 100, 400] },
+  
+  // Wave patterns for smooth variation
+  theta_wave: { type: 'wave', baseFrequency: 6, waveAmplitude: 1.5, wavePeriod: 8000 },
+  alpha_wave: { type: 'wave', baseFrequency: 10, waveAmplitude: 2, wavePeriod: 5000 },
+  slow_wave: { type: 'wave', baseFrequency: 4, waveAmplitude: 1, wavePeriod: 15000 },
+  
+  // Pulse patterns for intensity variation
+  soft_alpha: { type: 'pulse', baseFrequency: 10, dutyCycle: 0.3 },
+  intense_alpha: { type: 'pulse', baseFrequency: 10, dutyCycle: 0.7 },
+  
+  // Organic patterns with random variation
+  organic_theta: { type: 'wave', baseFrequency: 6, waveAmplitude: 1, wavePeriod: 10000, randomVariation: 20 },
+  organic_alpha: { type: 'wave', baseFrequency: 10, waveAmplitude: 1.5, wavePeriod: 6000, randomVariation: 15 },
+};
+
 // Phase configuration for a single journey stage
 export interface PhaseConfig {
   name: string;
@@ -41,6 +117,7 @@ export interface PhaseConfig {
   support_frequency?: FrequencyRange;
   nova_enabled?: boolean; // Enable Nova flicker for this phase
   nova_frequency?: number; // Override Nova frequency (Hz), otherwise auto-mapped from frequency/rhythm
+  nova_pattern?: NovaPattern; // Complex pattern (overrides nova_frequency for dynamic sequences)
   binaural_enabled?: boolean; // Enable binaural beats for this phase
   binaural_beat_frequency?: number; // Binaural beat frequency (Hz) - e.g., 3, 6, 10, 15 for Delta/Theta/Alpha/Beta
   binaural_carrier_frequency?: number; // Carrier frequency (Hz) - default 200 Hz, range 100-400 Hz recommended

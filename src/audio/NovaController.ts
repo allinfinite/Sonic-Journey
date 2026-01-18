@@ -1,7 +1,13 @@
 /**
  * NovaController - BLE control for Lumenate Nova device
  * Provides flicker control synchronized with journey phases
+ * 
+ * Supports both simple steady flickering and complex patterns
+ * (sweeps, bursts, rhythms, waves) via the NovaPatternEngine
  */
+
+import type { NovaPattern } from '../types/journey';
+import { NovaPatternEngine } from './NovaPatternEngine';
 
 // BLE Service and Characteristic UUIDs
 const CONTROL_SERVICE = '47bbfb1e-670e-4f81-bfb3-78daffc9a783';
@@ -122,6 +128,8 @@ export interface NovaState {
   isConnected: boolean;
   isFlickering: boolean;
   currentFrequency: number | null;
+  currentPattern: NovaPattern | null;
+  patternType: string | null; // Current pattern type for display
   device: BluetoothDevice | null;
   commandChar: BluetoothRemoteGATTCharacteristic | null;
 }
@@ -131,11 +139,15 @@ export class NovaController {
     isConnected: false,
     isFlickering: false,
     currentFrequency: null,
+    currentPattern: null,
+    patternType: null,
     device: null,
     commandChar: null,
   };
 
   private flickerInterval: ReturnType<typeof setInterval> | null = null;
+  private flickerTimeout: ReturnType<typeof setTimeout> | null = null; // For pattern-based scheduling
+  private patternEngine: NovaPatternEngine = new NovaPatternEngine();
   private onStateChange?: (state: NovaState) => void;
   private isStartingFlicker = false; // Guard against concurrent startFlicker calls
   private debugLog: Array<{ timestamp: number; message: string; type: 'info' | 'warn' | 'error' | 'success' }> = [];
@@ -295,12 +307,18 @@ export class NovaController {
    */
   private handleDisconnect() {
     this.addDebugLog('Handling disconnect...', 'warn');
-    // Stop flicker interval first (don't try to write to disconnected device)
+    // Stop flicker interval/timeout first (don't try to write to disconnected device)
     if (this.flickerInterval) {
       clearInterval(this.flickerInterval);
       this.flickerInterval = null;
       this.addDebugLog('Flicker interval stopped', 'info');
     }
+    if (this.flickerTimeout) {
+      clearTimeout(this.flickerTimeout);
+      this.flickerTimeout = null;
+      this.addDebugLog('Flicker timeout stopped', 'info');
+    }
+    this.patternEngine.stopPattern();
     
     // Update state (don't call stopFlicker as it tries to write to device)
     this.updateState({
@@ -309,6 +327,8 @@ export class NovaController {
       device: null,
       commandChar: null,
       currentFrequency: null,
+      currentPattern: null,
+      patternType: null,
     });
     this.addDebugLog('Disconnected', 'error');
   }
@@ -441,6 +461,14 @@ export class NovaController {
       this.flickerInterval = null;
       this.addDebugLog('Flicker interval stopped', 'info');
     }
+    
+    if (this.flickerTimeout) {
+      clearTimeout(this.flickerTimeout);
+      this.flickerTimeout = null;
+      this.addDebugLog('Flicker timeout stopped', 'info');
+    }
+    
+    this.patternEngine.stopPattern();
 
     // Don't send 02ff - it turns off the device and causes issues
     // Just stopping the interval is enough
@@ -448,7 +476,119 @@ export class NovaController {
     this.updateState({
       isFlickering: false,
       currentFrequency: null,
+      currentPattern: null,
+      patternType: null,
     });
+  }
+
+  /**
+   * Start a complex pattern-based flicker sequence
+   * Uses NovaPatternEngine for dynamic timing calculations
+   */
+  async startPattern(pattern: NovaPattern, phaseDurationMs: number): Promise<boolean> {
+    this.addDebugLog(`startPattern called: ${pattern.type} @ ${pattern.baseFrequency} Hz`, 'info');
+    
+    // Guard against concurrent calls
+    if (this.isStartingFlicker) {
+      this.addDebugLog('Flicker start already in progress, skipping', 'warn');
+      return false;
+    }
+
+    // Connection checks
+    if (!this.state.isConnected || !this.state.commandChar) {
+      this.addDebugLog('Device not connected, cannot start pattern', 'warn');
+      return false;
+    }
+
+    if (!this.state.device?.gatt?.connected) {
+      this.addDebugLog('Device connection lost', 'error');
+      this.updateState({
+        isConnected: false,
+        isFlickering: false,
+        currentFrequency: null,
+        currentPattern: null,
+        patternType: null,
+      });
+      return false;
+    }
+
+    this.isStartingFlicker = true;
+
+    // Stop any existing flicker
+    if (this.flickerInterval) {
+      clearInterval(this.flickerInterval);
+      this.flickerInterval = null;
+    }
+    if (this.flickerTimeout) {
+      clearTimeout(this.flickerTimeout);
+      this.flickerTimeout = null;
+    }
+
+    // Initialize pattern engine
+    this.patternEngine.startPattern(pattern, phaseDurationMs);
+    
+    const trigger = new Uint8Array([0x01, 0xff]);
+
+    // Send initial command
+    try {
+      this.addDebugLog('Sending initial pattern command...', 'info');
+      await this.state.commandChar.writeValue(trigger);
+      this.addDebugLog('Initial pattern command sent', 'success');
+    } catch (error) {
+      this.addDebugLog(`Initial pattern command error: ${error}`, 'error');
+      this.isStartingFlicker = false;
+      return false;
+    }
+
+    // Update state
+    this.updateState({
+      isFlickering: true,
+      currentFrequency: pattern.baseFrequency,
+      currentPattern: pattern,
+      patternType: pattern.type,
+    });
+
+    // Start pattern-driven scheduling
+    this.scheduleNextFlash();
+
+    this.addDebugLog(`Pattern started: ${pattern.type}`, 'success');
+    this.isStartingFlicker = false;
+    return true;
+  }
+
+  /**
+   * Schedule the next flash based on pattern engine
+   * Uses setTimeout for variable timing (patterns with changing intervals)
+   */
+  private scheduleNextFlash(): void {
+    if (!this.state.isFlickering || !this.state.commandChar) {
+      return;
+    }
+
+    const { interval, shouldFlash } = this.patternEngine.getNextFlash();
+    
+    // Update current frequency in state for display
+    const currentFreq = this.patternEngine.getCurrentFrequency();
+    if (currentFreq !== this.state.currentFrequency) {
+      this.updateState({ currentFrequency: currentFreq });
+    }
+
+    this.flickerTimeout = setTimeout(async () => {
+      if (!this.state.commandChar || !this.state.isFlickering) {
+        return;
+      }
+
+      if (shouldFlash) {
+        try {
+          await this.state.commandChar.writeValue(new Uint8Array([0x01, 0xff]));
+        } catch (error) {
+          // Silent fail - device disconnect event will handle cleanup
+        }
+      }
+
+      // Schedule next flash
+      this.scheduleNextFlash();
+    }, interval);
   }
 
   /**
@@ -456,6 +596,13 @@ export class NovaController {
    */
   getState(): Readonly<NovaState> {
     return { ...this.state };
+  }
+
+  /**
+   * Get the pattern engine for direct access if needed
+   */
+  getPatternEngine(): NovaPatternEngine {
+    return this.patternEngine;
   }
 }
 

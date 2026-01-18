@@ -3,8 +3,8 @@
  * Enables live playback and modulation of vibroacoustic journeys
  */
 
-import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode } from '../types/journey';
-import { ENTRAINMENT_PRESETS } from '../types/journey';
+import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode, NovaPattern } from '../types/journey';
+import { ENTRAINMENT_PRESETS, NOVA_PATTERN_PRESETS } from '../types/journey';
 import { novaController, getNovaFrequencyForPhase } from './NovaController';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
@@ -607,13 +607,14 @@ export class SynthEngine {
 
   /**
    * Update Nova flicker based on current phase and progress
-   * Uses neural entrainment frequency bands for synchronized brain stimulation
+   * Supports both simple steady flickering and complex patterns
    * 
-   * Priority for frequency selection:
-   * 1. Explicit nova_frequency override
-   * 2. entrainment_rate (exact Hz from preset)
-   * 3. rhythm_mode/entrainment_mode (band mapping)
-   * 4. Interpolated from frequency range based on phase progress
+   * Priority for flicker control:
+   * 1. nova_pattern (complex pattern with sweeps, bursts, etc.)
+   * 2. nova_frequency (explicit frequency override)
+   * 3. entrainment_rate (exact Hz from preset)
+   * 4. rhythm_mode/entrainment_mode (band mapping)
+   * 5. Interpolated from frequency range based on phase progress
    */
   private updateNovaFlicker(phase: PhaseConfig | null): void {
     if (!phase || !this.journeyConfig) return;
@@ -633,11 +634,52 @@ export class SynthEngine {
       return;
     }
     
-    // Get current phase progress for smooth ramping
-    const { progress } = this.getCurrentPhase();
+    // Get phase duration in milliseconds
+    const phaseDurationMs = phase.duration * 60 * 1000;
     
-    // Get optimal Nova frequency using the smart mapping function
-    // This considers: nova_frequency > entrainment_rate > rhythm_mode > frequency ramping
+    // Check if phase has a complex pattern
+    if (phase.nova_pattern) {
+      // Use pattern-based flicker
+      const pattern = phase.nova_pattern;
+      
+      // Only start pattern if not already running this pattern type
+      // or if pattern config changed
+      const patternChanged = novaState.patternType !== pattern.type ||
+                             novaState.currentPattern?.baseFrequency !== pattern.baseFrequency;
+      
+      if (!novaState.isFlickering || patternChanged) {
+        const currentState = novaController.getState();
+        if (!currentState.isConnected) return;
+        
+        novaController.startPattern(pattern, phaseDurationMs).catch((error) => {
+          console.error('Error starting Nova pattern:', error);
+        });
+      }
+      return;
+    }
+    
+    // No explicit pattern - create one based on rhythm_mode for more interesting effects
+    // This automatically upgrades simple configs to use patterns
+    const autoPattern = this.createAutoPattern(phase, phaseDurationMs);
+    
+    if (autoPattern) {
+      // Only start if pattern changed or not flickering
+      const patternChanged = novaState.patternType !== autoPattern.type ||
+                             novaState.currentPattern?.baseFrequency !== autoPattern.baseFrequency;
+      
+      if (!novaState.isFlickering || patternChanged) {
+        const currentState = novaController.getState();
+        if (!currentState.isConnected) return;
+        
+        novaController.startPattern(autoPattern, phaseDurationMs).catch((error) => {
+          console.error('Error starting Nova auto-pattern:', error);
+        });
+      }
+      return;
+    }
+    
+    // Fallback to simple frequency-based flicker
+    const { progress } = this.getCurrentPhase();
     const novaFreq = getNovaFrequencyForPhase({
       nova_frequency: phase.nova_frequency,
       entrainment_rate: phase.entrainment_rate,
@@ -655,21 +697,116 @@ export class SynthEngine {
     }
     
     // Start or update flicker
-    // Only call startFlicker if frequency changed significantly (>0.5 Hz) or flicker not running
     const freqChanged = novaState.currentFrequency === null || 
                         Math.abs(novaState.currentFrequency - novaFreq) > 0.5;
     
     if (!novaState.isFlickering || freqChanged) {
-      // Double-check connection state before attempting to start flicker
       const currentState = novaController.getState();
-      if (!currentState.isConnected) {
-        return;
-      }
+      if (!currentState.isConnected) return;
 
-      // Call startFlicker asynchronously (don't await - let it run in background)
       novaController.startFlicker(novaFreq).catch((error) => {
         console.error('Error starting Nova flicker:', error);
       });
+    }
+  }
+
+  /**
+   * Create an automatic pattern based on rhythm_mode and phase characteristics
+   * This makes journeys more dynamic even without explicit pattern config
+   */
+  private createAutoPattern(phase: PhaseConfig, _phaseDurationMs: number): NovaPattern | null {
+    const mode = phase.rhythm_mode || phase.entrainment_mode;
+    
+    // Check if frequency range changes significantly (creates automatic sweep)
+    const freqChange = phase.frequency ? Math.abs(phase.frequency.end - phase.frequency.start) : 0;
+    
+    if (freqChange > 3) {
+      // Significant frequency change - create a sweep pattern
+      const startFreq = phase.frequency!.start <= 30 
+        ? Math.max(1, Math.round(phase.frequency!.start)) 
+        : 10;
+      const endFreq = phase.frequency!.end <= 30 
+        ? Math.max(1, Math.round(phase.frequency!.end)) 
+        : 10;
+      
+      return {
+        type: 'sweep',
+        baseFrequency: startFreq,
+        targetFrequency: endFreq,
+        randomVariation: 10, // Slight organic feel
+      };
+    }
+    
+    // Map rhythm mode to interesting patterns
+    switch (mode) {
+      case 'breathing':
+        // Breathing mode: wave pattern that flows with breath
+        return NOVA_PATTERN_PRESETS.organic_alpha || {
+          type: 'wave',
+          baseFrequency: 10,
+          waveAmplitude: 2,
+          wavePeriod: 12000, // Match typical breath cycle
+          randomVariation: 15,
+        };
+        
+      case 'heartbeat':
+        // Heartbeat mode: rhythmic heartbeat pattern
+        return NOVA_PATTERN_PRESETS.heartbeat || {
+          type: 'rhythm',
+          baseFrequency: 10,
+          rhythmPattern: [100, 200, 100, 600], // lub-dub
+        };
+        
+      case 'theta':
+        // Theta: gentle wave for meditation
+        return {
+          type: 'wave',
+          baseFrequency: phase.entrainment_rate || 6,
+          waveAmplitude: 1,
+          wavePeriod: 10000,
+          randomVariation: 10,
+        };
+        
+      case 'alpha':
+        // Alpha: wave pattern for visuals
+        return {
+          type: 'wave',
+          baseFrequency: phase.entrainment_rate || 10,
+          waveAmplitude: 1.5,
+          wavePeriod: 6000,
+          randomVariation: 15,
+        };
+        
+      case 'delta':
+        // Delta: very slow, gentle wave
+        return {
+          type: 'wave',
+          baseFrequency: phase.entrainment_rate || 3,
+          waveAmplitude: 0.5,
+          wavePeriod: 15000,
+          randomVariation: 20,
+        };
+        
+      case 'beta':
+        // Beta: burst pattern for focus/activation
+        return {
+          type: 'burst',
+          baseFrequency: phase.entrainment_rate || 15,
+          burstCount: 5,
+          burstGap: 400,
+        };
+        
+      case 'gamma':
+        // Gamma: steady with slight variation
+        return {
+          type: 'steady',
+          baseFrequency: 40,
+          randomVariation: 5,
+        };
+        
+      default:
+        // No special pattern needed - return null to use simple frequency
+        return null;
     }
   }
 

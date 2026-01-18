@@ -1,10 +1,11 @@
 {
   "name": "Deep Focus",
   "category": "focus",
-  "description": "Extended concentration support for deep work sessions",
+  "description": "Extended concentration support for deep work sessions. Nova patterns use alpha waves and burst patterns for activation, helping maintain flow state during focused work.",
   "duration_minutes": 60,
   "sample_rate": 48000,
   "bit_depth": 24,
+  "nova_enabled": true,
   "safety": {
     "max_rms_db": -14,
     "peak_ceiling_db": -1
@@ -19,6 +20,7 @@
       "name": "Settle In",
       "start_min": 0,
       "end_min": 10,
+      "duration": 10,
       "frequency": { "start": 40, "end": 48 },
       "support_frequency": { "start": 36, "end": 44 },
       "amplitude": { "start": 0.0, "end": 0.55 },
@@ -26,12 +28,23 @@
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "nova_enabled": true,
+      "nova_pattern": {
+        "type": "wave",
+        "baseFrequency": 10,
+        "waveAmplitude": 1.5,
+        "wavePeriod": 10000,
+        "randomVariation": 10
+      },
+      "binaural_enabled": true,
+      "binaural_beat_frequency": 10
     },
     {
       "name": "Engage",
       "start_min": 10,
       "end_min": 25,
+      "duration": 15,
       "frequency": { "start": 48, "end": 55 },
       "support_frequency": { "start": 44, "end": 50 },
       "amplitude": { "start": 0.55, "end": 0.6 },
@@ -40,12 +53,22 @@
       "fm_rate": 0.1,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 11.0
+      "entrainment_rate": 11.0,
+      "nova_enabled": true,
+      "nova_pattern": {
+        "type": "burst",
+        "baseFrequency": 12,
+        "burstCount": 5,
+        "burstGap": 400
+      },
+      "binaural_enabled": true,
+      "binaural_beat_frequency": 12
     },
     {
       "name": "Flow State",
       "start_min": 25,
       "end_min": 50,
+      "duration": 25,
       "frequency": { "start": 55, "end": 55 },
       "support_frequency": { "start": 50, "end": 50 },
       "amplitude": { "start": 0.6, "end": 0.6 },
@@ -54,12 +77,23 @@
       "fm_rate": 0.08,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 12.0
+      "entrainment_rate": 12.0,
+      "nova_enabled": true,
+      "nova_pattern": {
+        "type": "wave",
+        "baseFrequency": 12,
+        "waveAmplitude": 1,
+        "wavePeriod": 6000,
+        "randomVariation": 15
+      },
+      "binaural_enabled": true,
+      "binaural_beat_frequency": 12
     },
     {
       "name": "Wind Down",
       "start_min": 50,
       "end_min": 60,
+      "duration": 10,
       "frequency": { "start": 55, "end": 42 },
       "support_frequency": { "start": 50, "end": 38 },
       "amplitude": { "start": 0.6, "end": 0.0 },
@@ -67,7 +101,16 @@
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing"
+      "entrainment_mode": "breathing",
+      "nova_enabled": true,
+      "nova_pattern": {
+        "type": "sweep",
+        "baseFrequency": 12,
+        "targetFrequency": 8,
+        "randomVariation": 10
+      },
+      "binaural_enabled": true,
+      "binaural_beat_frequency": 10
     }
   ]
 }
