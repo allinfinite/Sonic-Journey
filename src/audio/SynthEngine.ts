@@ -1008,13 +1008,15 @@ export class SynthEngine {
       return;
     }
     
-    // Debug: log when melody should be enabled
-    if (!this.melody.enabled) {
+    // Debug: log when melody should be enabled (only once per phase change)
+    if (!this.melody.enabled || this.melody.currentPhaseName !== phase.name) {
       console.log('Enabling melody layer', {
         melody_layer: this.journeyConfig?.layers?.melody_layer,
         melody_enabled: phase.melody_enabled,
         style: phase.melody_style || 'mixed',
         scale: phase.melody_scale || 'pentatonic_minor',
+        intensity: phase.melody_intensity ?? 0.3,
+        density: phase.melody_density || 'moderate',
       });
     }
 
@@ -1066,9 +1068,11 @@ export class SynthEngine {
 
       // Initialize and start
       try {
-        // Set Tone.js to use the same AudioContext
+        // Set Tone.js to use the same AudioContext as SynthEngine
         if (this.ctx && typeof window !== 'undefined') {
           const Tone = await import('tone');
+          // Set Tone.js to use our AudioContext
+          Tone.setContext(this.ctx);
           if (Tone.context.state !== 'running') {
             await Tone.context.resume();
           }
