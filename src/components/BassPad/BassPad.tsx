@@ -12,10 +12,12 @@ export function BassPad() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<BassPadEngine | null>(null);
   const [activeTouches, setActiveTouches] = useState<TouchPoint[]>([]);
-  const touchActionRef = useRef<'create' | 'delete' | null>(null);
+  const touchActionRef = useRef<'create' | 'delete' | 'move' | null>(null);
   const nextToneIdRef = useRef<number>(1000); // Start from 1000 to avoid conflicts with pointer IDs
   const [addMode, setAddMode] = useState(false); // When true, clicking pad always adds (doesn't remove existing)
   const pointerToToneIdRef = useRef<Map<number, number>>(new Map()); // Map pointer ID to tone ID for add mode
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null); // Track drag start position
+  const pendingDeleteRef = useRef<number | null>(null); // Track tone ID that might be deleted if no drag
 
   // Initialize engine on mount
   useEffect(() => {
@@ -68,6 +70,10 @@ export function BassPad() {
     // Set pointer capture for this element
     container.setPointerCapture(e.pointerId);
 
+    // Store drag start position
+    dragStartRef.current = { x: coords.x, y: coords.y };
+    pendingDeleteRef.current = null;
+
     // Check if there's already a tone at this position
     const existingTouch = engineRef.current.getTouchAtPosition(coords.x, coords.y, 0.05);
     
@@ -82,11 +88,14 @@ export function BassPad() {
       // Disable add mode after adding one tone
       setAddMode(false);
     } else {
-      // Normal mode: Toggle behavior (add if empty, remove if exists)
+      // Normal mode
       if (existingTouch) {
-        // Remove existing tone at this position
-        engineRef.current.stopTouch(existingTouch.id);
-        touchActionRef.current = 'delete';
+        // Don't delete immediately - mark for potential deletion if no drag occurs
+        // Allow dragging the existing tone
+        touchActionRef.current = 'move';
+        pendingDeleteRef.current = existingTouch.id;
+        // Store mapping so we can update this tone on drag
+        pointerToToneIdRef.current.set(e.pointerId, existingTouch.id);
       } else {
         // Start new tone (audio will be initialized automatically on first touch)
         await engineRef.current.startTouch(e.pointerId, coords.x, coords.y);
@@ -100,28 +109,62 @@ export function BassPad() {
   }, [getNormalizedCoords, updateActiveTouches, addMode]);
 
   // Handle pointer move (touch/click drag)
-  // Only update position if we created a tone (not if we deleted one)
+  // Update position if we created a tone or are moving an existing one
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
-    if (!engineRef.current || touchActionRef.current !== 'create') return;
+    if (!engineRef.current || (touchActionRef.current !== 'create' && touchActionRef.current !== 'move')) return;
 
     const coords = getNormalizedCoords(e);
     if (!coords) return;
 
+    // Check if we've moved enough to consider it a drag (not just a click)
+    if (dragStartRef.current) {
+      const dx = Math.abs(coords.x - dragStartRef.current.x);
+      const dy = Math.abs(coords.y - dragStartRef.current.y);
+      const dragThreshold = 0.01; // 1% of pad size
+      
+      if (dx > dragThreshold || dy > dragThreshold) {
+        // User is dragging - cancel pending delete
+        if (touchActionRef.current === 'move' && pendingDeleteRef.current !== null) {
+          pendingDeleteRef.current = null;
+        }
+      }
+    }
+
     // Get the correct tone ID for this pointer (handles add mode where pointer ID != tone ID)
     const toneId = pointerToToneIdRef.current.get(e.pointerId) ?? e.pointerId;
     
-    // Update tone position (only if we created a tone, not deleted one)
+    // Update tone position
     engineRef.current.updateTouch(toneId, coords.x, coords.y);
     updateActiveTouches();
   }, [getNormalizedCoords, updateActiveTouches]);
 
   // Handle pointer up (touch/click end)
   // Tones now sustain - we just release pointer capture but keep tone playing
+  // If there was a pending delete and no drag occurred, delete the tone
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const container = containerRef.current;
     if (!container) return;
+
+    // If there's a pending delete and we didn't drag, delete the tone
+    if (pendingDeleteRef.current !== null && touchActionRef.current === 'move') {
+      // Check if we actually dragged
+      const coords = getNormalizedCoords(e);
+      if (coords && dragStartRef.current) {
+        const dx = Math.abs(coords.x - dragStartRef.current.x);
+        const dy = Math.abs(coords.y - dragStartRef.current.y);
+        const dragThreshold = 0.01; // 1% of pad size
+        
+        if (dx <= dragThreshold && dy <= dragThreshold) {
+          // No drag occurred - delete the tone
+          if (engineRef.current) {
+            engineRef.current.stopTouch(pendingDeleteRef.current);
+            updateActiveTouches();
+          }
+        }
+      }
+    }
 
     // Release pointer capture (tone continues playing)
     container.releasePointerCapture(e.pointerId);
@@ -129,9 +172,11 @@ export function BassPad() {
     
     // Reset touch action tracking
     touchActionRef.current = null;
+    dragStartRef.current = null;
+    pendingDeleteRef.current = null;
     // Clean up pointer to tone ID mapping (pointer is done, tone continues)
     pointerToToneIdRef.current.delete(e.pointerId);
-  }, []);
+  }, [getNormalizedCoords, updateActiveTouches]);
 
   // Handle pointer cancel (touch interrupted)
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
@@ -204,11 +249,12 @@ export function BassPad() {
       ctx.arc(x, y, 8, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw frequency label
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.font = '12px system-ui';
+      // Draw frequency label - positioned further from touch point and larger
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.font = 'bold 18px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(`${touch.frequency.toFixed(1)} Hz`, x, y - 20);
+      // Position label 50 pixels above the touch point (was 20)
+      ctx.fillText(`${touch.frequency.toFixed(1)} Hz`, x, y - 50);
     });
   }, [activeTouches]);
 
