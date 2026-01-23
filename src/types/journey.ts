@@ -102,8 +102,11 @@ export const NOVA_PATTERN_PRESETS: Record<string, NovaPattern> = {
   organic_alpha: { type: 'wave', baseFrequency: 10, waveAmplitude: 1.5, wavePeriod: 6000, randomVariation: 15 },
 };
 
-// Import melody types
-import type { MelodyStyle, MelodyScale, NoteDensity } from './melodyGenerator';
+
+// Melody style types
+export type MelodyStyle = 'drone' | 'arpeggio' | 'evolving' | 'harmonic' | 'mixed';
+export type MelodyScale = 'pentatonic_major' | 'pentatonic_minor' | 'natural_minor' | 'major' | 'lydian' | 'mixolydian' | 'dorian' | 'whole_tone' | 'chromatic';
+export type NoteDensity = 'sparse' | 'moderate' | 'dense';
 
 // Phase configuration for a single journey stage
 export interface PhaseConfig {
@@ -127,12 +130,11 @@ export interface PhaseConfig {
   binaural_volume?: number; // Volume/intensity (0-1) - default 0.3, range 0.1-0.8 recommended
   binaural_waveform?: 'sine' | 'triangle' | 'sawtooth' | 'square'; // Waveform type - default 'sine'
   // Melody layer settings
-  melody_enabled?: boolean; // Enable melody layer for this phase
-  melody_style?: MelodyStyle; // Melody generation style
-  melody_scale?: MelodyScale; // Musical scale for melody
-  melody_intensity?: number; // Melody volume (0-1)
-  melody_density?: NoteDensity; // Note density (sparse, moderate, dense)
-  
+  melody_enabled?: boolean;        // Enable melody for this phase (default true if melody_layer is on)
+  melody_style?: MelodyStyle;      // Melody style
+  melody_scale?: MelodyScale;      // Musical scale
+  melody_intensity?: number;       // 0-1, volume/presence of melody
+  melody_density?: NoteDensity;    // Note density
   // Audio enhancement settings
   harmonic_richness?: number;      // 0-1, amount of harmonic content added
   effects_intensity?: number;      // 0-1, overall effects level
@@ -147,7 +149,7 @@ export interface LayerConfig {
   base_carrier: boolean;
   support_carrier: boolean;
   texture_layer: boolean;
-  melody_layer: boolean;
+  melody_layer?: boolean;  // Optional melody layer
 }
 
 // Complete journey configuration

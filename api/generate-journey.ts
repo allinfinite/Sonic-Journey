@@ -117,8 +117,7 @@ Return a JSON object with this exact structure:
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -129,12 +128,7 @@ Return a JSON object with this exact structure:
       "breath_cycle_sec": <seconds>,
       "fm_depth": <0-0.2>,
       "rhythm_mode": "breathing" | "still" | "heartbeat" | "theta" | "alpha",
-      "entrainment_mode": "breathing" | "none" | "heartbeat" | "theta" | "alpha",
-      "melody_enabled": true,
-      "melody_style": "drone" | "arpeggio" | "evolving" | "harmonic" | "mixed",
-      "melody_scale": "pentatonic_minor" | "pentatonic_major" | "dorian" | "lydian" | "natural_minor",
-      "melody_intensity": <0-1, typically 0.2-0.4>,
-      "melody_density": "sparse" | "moderate" | "dense"
+      "entrainment_mode": "breathing" | "none" | "heartbeat" | "theta" | "alpha"
     }
   ]
 }
@@ -144,20 +138,7 @@ IMPORTANT:
 - All frequencies must be between 20-120 Hz
 - All amplitudes must be between 0-1
 - Use appropriate rhythm modes for the therapeutic intent
-- Create smooth transitions between phases
-
-MELODY LAYER:
-The melody layer adds ambient melodic content:
-- "drone": Long sustained pad tones - for deep meditation, theta/delta states
-- "arpeggio": Rhythmic arpeggiated patterns - for active focus, alpha/beta states
-- "evolving": Probabilistic evolving sequences - for dynamic flow states
-- "harmonic": Harmonic overtones - for rich, resonant phases
-- "mixed": Combination of styles - for transitions
-
-Melody scales: "pentatonic_minor" (meditative), "pentatonic_major" (uplifting), "dorian" (flowing), "lydian" (ethereal), "natural_minor" (introspective)
-Melody intensity: 0.2-0.4 (keep subtle, supporting foundation)
-Melody density: "sparse" (deep states), "moderate" (active states), "dense" (peak experiences)
-- Always include melody configuration for each phase`;
+- Create smooth transitions between phases`;
 }
 
 function createUserPrompt(userPrompt: string, duration: number): string {

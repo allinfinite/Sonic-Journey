@@ -13,8 +13,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -47,12 +46,7 @@
         "randomVariation": 15
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 8,
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 8
     },
     {
       "name": "Sinking",
@@ -86,12 +80,7 @@
         "randomVariation": 20
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 4,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.3125,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 4
     },
     {
       "name": "Deep Sleep",
@@ -125,12 +114,7 @@
         "randomVariation": 25
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 2.5,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.3125,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 2.5
     },
     {
       "name": "Gentle Rising",
@@ -162,12 +146,7 @@
         "randomVariation": 15
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 6,
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.25,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 6
     },
     {
       "name": "Awakening",
@@ -200,12 +179,7 @@
         "randomVariation": 10
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 10,
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 10
     }
   ]
 }

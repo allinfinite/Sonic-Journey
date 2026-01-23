@@ -125,8 +125,7 @@ Return a JSON object with this exact structure:
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -150,12 +149,7 @@ Return a JSON object with this exact structure:
         "burstGap": <ms gap for burst>
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": <Hz matching entrainment>,
-      "melody_enabled": true,
-      "melody_style": "drone" | "arpeggio" | "evolving" | "harmonic" | "mixed",
-      "melody_scale": "pentatonic_minor" | "pentatonic_major" | "dorian" | "lydian" | "natural_minor",
-      "melody_intensity": <0-1, typically 0.2-0.4>,
-      "melody_density": "sparse" | "moderate" | "dense"
+      "binaural_beat_frequency": <Hz matching entrainment>
     }
   ]
 }
@@ -168,26 +162,7 @@ IMPORTANT:
 - Create smooth transitions between phases
 - Include nova_pattern for each phase to create dynamic light experiences
 - Match nova_pattern type to phase purpose (sweep for transitions, wave for meditation, burst for activation)
-- Include binaural_enabled and binaural_beat_frequency matching the entrainment for enhanced neural synchronization
-
-MELODY LAYER:
-The melody layer adds ambient melodic content that enhances the therapeutic experience:
-- "drone": Long sustained pad tones - use for deep meditation, theta/delta states, settling phases
-- "arpeggio": Rhythmic arpeggiated patterns - use for active focus, alpha/beta states, energizing phases
-- "evolving": Probabilistic evolving sequences - use for dynamic flow states, peak experiences
-- "harmonic": Harmonic overtones based on foundation frequency - use for rich, resonant phases
-- "mixed": Combination of styles - use for transitions and complex phases
-
-Melody scale guidelines:
-- "pentatonic_minor": Darker, meditative - use for deep rest, theta states
-- "pentatonic_major": Brighter, uplifting - use for energizing, alpha states
-- "dorian": Mystical, flowing - use for transitions and flow states
-- "lydian": Ethereal, spacious - use for peak experiences
-- "natural_minor": Melancholic, introspective - use for emotional processing
-
-Melody intensity: 0.2-0.4 (keep subtle, supporting the foundation frequencies)
-Melody density: "sparse" for deep states, "moderate" for active states, "dense" for peak experiences
-- Always include melody_enabled: true and appropriate melody configuration for each phase`;
+- Include binaural_enabled and binaural_beat_frequency matching the entrainment for enhanced neural synchronization`;
 }
 
 /**
@@ -441,17 +416,6 @@ function validateAndNormalizeJourney(
       binaural_enabled: phase.binaural_enabled !== false,
       binaural_beat_frequency: binauralFreq,
       binaural_carrier_frequency: phase.binaural_carrier_frequency || 200,
-      // Melody configuration
-      melody_enabled: phase.melody_enabled !== false,
-      melody_style: phase.melody_style || (rhythmMode === 'theta' || rhythmMode === 'delta' ? 'drone' : 
-                                          rhythmMode === 'alpha' || rhythmMode === 'beta' ? 'arpeggio' : 'mixed'),
-      melody_scale: phase.melody_scale || (rhythmMode === 'theta' || rhythmMode === 'delta' ? 'pentatonic_minor' : 'pentatonic_major'),
-      melody_intensity: phase.melody_intensity !== undefined ? 
-        Math.max(0.1, Math.min(0.5, phase.melody_intensity)) : 
-        Math.max(0.2, Math.min(0.4, ((ampStart + ampEnd) / 2) * 0.5)),
-      melody_density: phase.melody_density || 
-        (rhythmMode === 'theta' || rhythmMode === 'delta' ? 'sparse' : 
-         rhythmMode === 'alpha' || rhythmMode === 'beta' ? 'moderate' : 'sparse'),
     };
   });
 

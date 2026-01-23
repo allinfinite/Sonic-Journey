@@ -13,8 +13,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -47,12 +46,7 @@
         "wavePeriod": 12000,
         "randomVariation": 10
       },
-      "binaural_enabled": true,
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "binaural_enabled": true
     },
     {
       "name": "Onset",
@@ -83,12 +77,7 @@
         "targetFrequency": 7,
         "randomVariation": 15
       },
-      "binaural_enabled": true,
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.25,
-      "melody_density": "sparse"
+      "binaural_enabled": true
     },
     {
       "name": "Deepening",
@@ -122,12 +111,7 @@
         "randomVariation": 15
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 5.5,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.2875,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 5.5
     },
     {
       "name": "Peak Experience",
@@ -161,12 +145,7 @@
         "randomVariation": 20
       },
       "binaural_enabled": true,
-      "binaural_beat_frequency": 4.5,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.3,
-      "melody_density": "sparse"
+      "binaural_beat_frequency": 4.5
     },
     {
       "name": "Return",
@@ -197,12 +176,7 @@
         "targetFrequency": 8,
         "randomVariation": 15
       },
-      "binaural_enabled": true,
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.275,
-      "melody_density": "sparse"
+      "binaural_enabled": true
     },
     {
       "name": "Integration",
@@ -234,12 +208,7 @@
         "wavePeriod": 8000,
         "randomVariation": 10
       },
-      "binaural_enabled": true,
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "binaural_enabled": true
     }
   ]
 }

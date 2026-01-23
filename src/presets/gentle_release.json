@@ -12,8 +12,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -36,12 +35,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Opening",
@@ -63,12 +57,7 @@
       "fm_depth": 0.25,
       "fm_rate": 0.05,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.3375,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Releasing",
@@ -91,12 +80,7 @@
       "fm_rate": 0.04,
       "rhythm_mode": "theta",
       "entrainment_mode": "theta",
-      "entrainment_rate": 5,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.3625,
-      "melody_density": "sparse"
+      "entrainment_rate": 5
     },
     {
       "name": "Settling",
@@ -118,12 +102,7 @@
       "fm_depth": 0.15,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     }
   ]
 }

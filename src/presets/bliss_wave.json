@@ -12,8 +12,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": true,
-    "melody_layer": true
+    "texture_layer": true
   },
   "phases": [
     {
@@ -36,12 +35,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "First Wave",
@@ -64,12 +58,7 @@
       "fm_rate": 0.1,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 9,
-      "melody_enabled": true,
-      "melody_style": "arpeggio",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.32499999999999996,
-      "melody_density": "moderate"
+      "entrainment_rate": 9
     },
     {
       "name": "Peak Experience",
@@ -92,12 +81,7 @@
       "fm_rate": 0.12,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 10,
-      "melody_enabled": true,
-      "melody_style": "arpeggio",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.375,
-      "melody_density": "moderate"
+      "entrainment_rate": 10
     },
     {
       "name": "Integration",
@@ -119,12 +103,7 @@
       "fm_depth": 0.2,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.35,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Grounding",
@@ -146,12 +125,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     }
   ]
 }

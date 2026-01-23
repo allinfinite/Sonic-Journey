@@ -12,8 +12,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": true,
-    "melody_layer": true
+    "texture_layer": true
   },
   "phases": [
     {
@@ -36,12 +35,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Descent",
@@ -64,12 +58,7 @@
       "fm_rate": 0.05,
       "rhythm_mode": "theta",
       "entrainment_mode": "theta",
-      "entrainment_rate": 6,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.35,
-      "melody_density": "sparse"
+      "entrainment_rate": 6
     },
     {
       "name": "Deep Space",
@@ -92,12 +81,7 @@
       "fm_rate": 0.03,
       "rhythm_mode": "theta",
       "entrainment_mode": "theta",
-      "entrainment_rate": 4,
-      "melody_enabled": true,
-      "melody_style": "drone",
-      "melody_scale": "pentatonic_minor",
-      "melody_intensity": 0.3875,
-      "melody_density": "sparse"
+      "entrainment_rate": 4
     },
     {
       "name": "Expansion",
@@ -120,12 +104,7 @@
       "fm_rate": 0.06,
       "rhythm_mode": "alpha",
       "entrainment_mode": "alpha",
-      "entrainment_rate": 8,
-      "melody_enabled": true,
-      "melody_style": "arpeggio",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.36250000000000004,
-      "melody_density": "moderate"
+      "entrainment_rate": 8
     },
     {
       "name": "Return",
@@ -147,12 +126,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.08,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     }
   ]
 }

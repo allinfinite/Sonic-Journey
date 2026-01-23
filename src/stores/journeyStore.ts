@@ -25,11 +25,6 @@ const defaultJourney: JourneyConfig = {
       breath_cycle_sec: 12,
       fm_depth: 0,
       rhythm_mode: 'breathing',
-      melody_enabled: true,
-      melody_style: 'drone',
-      melody_scale: 'pentatonic_minor',
-      melody_intensity: 0.25,
-      melody_density: 'sparse',
     },
     {
       name: 'Going Deeper',
@@ -39,11 +34,6 @@ const defaultJourney: JourneyConfig = {
       breath_cycle_sec: 14,
       fm_depth: 0.1,
       rhythm_mode: 'breathing',
-      melody_enabled: true,
-      melody_style: 'drone',
-      melody_scale: 'pentatonic_minor',
-      melody_intensity: 0.3,
-      melody_density: 'sparse',
     },
     {
       name: 'Deep Rest',
@@ -53,11 +43,6 @@ const defaultJourney: JourneyConfig = {
       breath_cycle_sec: 16,
       fm_depth: 0.15,
       rhythm_mode: 'theta',
-      melody_enabled: true,
-      melody_style: 'drone',
-      melody_scale: 'pentatonic_minor',
-      melody_intensity: 0.25,
-      melody_density: 'sparse',
     },
     {
       name: 'Rising Up',
@@ -67,11 +52,6 @@ const defaultJourney: JourneyConfig = {
       breath_cycle_sec: 12,
       fm_depth: 0.1,
       rhythm_mode: 'breathing',
-      melody_enabled: true,
-      melody_style: 'mixed',
-      melody_scale: 'pentatonic_major',
-      melody_intensity: 0.3,
-      melody_density: 'moderate',
     },
     {
       name: 'Coming Home',
@@ -81,11 +61,6 @@ const defaultJourney: JourneyConfig = {
       breath_cycle_sec: 10,
       fm_depth: 0,
       rhythm_mode: 'breathing',
-      melody_enabled: true,
-      melody_style: 'drone',
-      melody_scale: 'pentatonic_major',
-      melody_intensity: 0.2,
-      melody_density: 'sparse',
     },
   ],
 };
@@ -127,7 +102,6 @@ interface JourneyState {
   addPhase: () => void;
   removePhase: (index: number) => void;
   setLayers: (layers: JourneyConfig['layers']) => void;
-  toggleMelodyLayer: (enabled: boolean) => void;
 
   // Playback actions
   play: () => void;
@@ -257,13 +231,6 @@ export const useJourneyStore = create<JourneyState>((set, get) => ({
     synthEngine.setJourneyConfig(newJourney);
   },
 
-  toggleMelodyLayer: (enabled) => {
-    const { journey } = get();
-    const newLayers = { ...journey.layers, melody_layer: enabled };
-    const newJourney = { ...journey, layers: newLayers };
-    set({ journey: newJourney, isDirty: true });
-    synthEngine.setJourneyConfig(newJourney);
-  },
 
   // Playback actions
   play: () => {

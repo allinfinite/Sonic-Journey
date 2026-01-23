@@ -8,8 +8,6 @@ import { ENTRAINMENT_PRESETS } from '../types/journey';
 import { Oscillator } from './Oscillator';
 import { Envelope } from './Envelope';
 import { SafetyProcessor } from './SafetyProcessor';
-import type { MelodyStyle, MelodyScale, NoteDensity } from '../types/melodyGenerator';
-import { getScaleNotesInRange, foundationToMelodyRoot, DENSITY_MULTIPLIERS } from '../types/melodyGenerator';
 import { createHarmonicEnricher } from './HarmonicEnricher';
 import { createEffectsChain } from './EffectsChain';
 import { createSpatialProcessor } from './SpatialProcessor';
@@ -82,13 +80,17 @@ export class OfflineRenderer {
       });
 
       // Generate phase audio
-      const phaseAudio = this.renderPhase(
+      let phaseAudio = this.renderPhase(
         phase,
         phaseSamples,
         config.layers,
         oscillator,
         envelope
       );
+      
+      // Normalize each phase to consistent level before concatenation
+      // This ensures consistent volume across phases regardless of layer combinations
+      phaseAudio = safety.normalizePhase(phaseAudio, -3); // -3 dB peak leaves headroom
 
       phaseAudioChunks.push(phaseAudio);
       processedSamples += phaseSamples;
@@ -104,12 +106,12 @@ export class OfflineRenderer {
 
     let fullAudio = this.concatenateWithCrossfades(phaseAudioChunks, envelope);
 
-    // Apply safety processing
+    // Apply safety processing and normalization
     onProgress?.({
       phase: 'Processing',
       stage: 'safety',
       progress: 70,
-      message: 'Applying safety processing...',
+      message: 'Applying safety processing and normalization...',
     });
 
     const safetyConfig = config.safety || {
@@ -119,13 +121,28 @@ export class OfflineRenderer {
       highpass_hz: 20,
     };
 
-    fullAudio = safety.processChain(
-      fullAudio,
-      safetyConfig.max_rms_db,
-      safetyConfig.peak_ceiling_db,
-      safetyConfig.lowpass_hz,
-      safetyConfig.highpass_hz
-    );
+    // Check if journey has full-range audio
+    const hasFullRangeAudio = false;
+
+    if (hasFullRangeAudio) {
+      // Use full-range processing with LUFS normalization
+      // Target -14 LUFS for streaming compatibility
+      fullAudio = safety.processFullRangeChain(
+        fullAudio,
+        -14, // Target LUFS
+        safetyConfig.peak_ceiling_db,
+        true // Use LUFS
+      );
+    } else {
+      // Use vibroacoustic-specific processing with bandpass filtering
+      fullAudio = safety.processChain(
+        fullAudio,
+        safetyConfig.max_rms_db,
+        safetyConfig.peak_ceiling_db,
+        safetyConfig.lowpass_hz,
+        safetyConfig.highpass_hz
+      );
+    }
 
     // Create buffer source and render
     onProgress?.({
@@ -252,21 +269,6 @@ export class OfflineRenderer {
       }
     }
 
-    // Melody Layer - ambient melodic content
-    if (layers.melody_layer === true && phase.melody_enabled !== false) {
-      const melodyAudio = this.renderMelodyLayer(phase, samples, entrainmentMode);
-      
-      const melodyIntensity = phase.melody_intensity ?? 0.3;
-      const ampEnv = envelope.sCurveRamp(
-        samples,
-        phase.amplitude.start * melodyIntensity,
-        phase.amplitude.end * melodyIntensity
-      );
-
-      for (let i = 0; i < samples; i++) {
-        mixed[i] += melodyAudio[i] * ampEnv[i];
-      }
-    }
 
     // Apply psychedelic audio enhancement if enabled
     const hasEnhancements = 
@@ -376,153 +378,6 @@ export class OfflineRenderer {
     return output;
   }
 
-  /**
-   * Render melody layer for a phase
-   */
-  private renderMelodyLayer(
-    phase: PhaseConfig,
-    samples: number,
-    entrainmentMode: EntrainmentMode
-  ): Float32Array {
-    const foundationFreq = (phase.frequency.start + phase.frequency.end) / 2;
-    
-    // Get melody settings from phase
-    const style: MelodyStyle = phase.melody_style || 'mixed';
-    const scale: MelodyScale = phase.melody_scale || 'pentatonic_minor';
-    const density: NoteDensity = phase.melody_density || 'moderate';
-
-    // Generate melody synchronously for offline rendering
-    // We'll generate a simple version here since full async isn't ideal for offline
-    const output = new Float32Array(samples);
-    
-    // For offline rendering, we generate a simpler version
-    // using direct oscillator synthesis based on style
-    this.generateMelodyDirect(
-      output,
-      phase,
-      foundationFreq,
-      scale,
-      style,
-      density,
-      entrainmentMode
-    );
-
-    return output;
-  }
-
-  /**
-   * Direct melody generation for offline rendering
-   */
-  private generateMelodyDirect(
-    output: Float32Array,
-    phase: PhaseConfig,
-    foundationFreq: number,
-    scale: MelodyScale,
-    style: MelodyStyle,
-    density: NoteDensity,
-    entrainmentMode: EntrainmentMode
-  ): void {
-    const samples = output.length;
-    const intensity = phase.melody_intensity ?? 0.3;
-    
-    // Get scale notes
-    const rootFreq = foundationToMelodyRoot(foundationFreq);
-    const scaleNotes: number[] = getScaleNotesInRange(rootFreq, scale, 200, 800);
-    
-    if (scaleNotes.length === 0) return;
-
-    // Calculate note timing based on entrainment and density
-    const preset = ENTRAINMENT_PRESETS[entrainmentMode];
-    const densityMult = DENSITY_MULTIPLIERS[density] || 0.5;
-    const noteRate = (preset.rate > 0 ? preset.rate : 0.5) * densityMult;
-    const noteDuration = Math.max(0.5, 1 / noteRate);
-    const noteGap = noteDuration * 0.1;
-    
-    const twoPiOverSr = (2 * Math.PI) / this.sampleRate;
-    let noteIndex = 0;
-    let phase_osc = 0;
-    let currentNoteStart = 0;
-    let currentFreq = scaleNotes[0];
-    
-    for (let i = 0; i < samples; i++) {
-      const time = i / this.sampleRate;
-      const noteTime = time - currentNoteStart;
-      
-      // Check if it's time for a new note
-      if (noteTime >= noteDuration) {
-        currentNoteStart = time;
-        
-        // Select next note based on style
-        switch (style) {
-          case 'drone':
-            // Drone stays on root or moves slowly
-            if (Math.random() < 0.1) {
-              noteIndex = Math.floor(Math.random() * Math.min(3, scaleNotes.length));
-            }
-            break;
-            
-          case 'arpeggio':
-            // Sequential movement through scale
-            noteIndex = (noteIndex + 1) % scaleNotes.length;
-            break;
-            
-          case 'evolving':
-            // Probabilistic movement
-            const direction = Math.random() < 0.6 ? 1 : -1;
-            const step = Math.floor(Math.random() * 3) + 1;
-            noteIndex = Math.max(0, Math.min(scaleNotes.length - 1, noteIndex + direction * step));
-            break;
-            
-          case 'harmonic':
-            // Jump to harmonically related notes
-            const harmonics = [0, 4, 7, 12]; // Root, third, fifth, octave in scale
-            const harmonicIdx = harmonics[Math.floor(Math.random() * harmonics.length)];
-            noteIndex = Math.min(harmonicIdx, scaleNotes.length - 1);
-            break;
-            
-          case 'mixed':
-          default:
-            // Random selection of styles
-            const r = Math.random();
-            if (r < 0.4) {
-              noteIndex = (noteIndex + 1) % scaleNotes.length;
-            } else if (r < 0.7) {
-              const dir = Math.random() < 0.5 ? 1 : -1;
-              noteIndex = Math.max(0, Math.min(scaleNotes.length - 1, noteIndex + dir));
-            } else {
-              noteIndex = Math.floor(Math.random() * scaleNotes.length);
-            }
-            break;
-        }
-        
-        currentFreq = scaleNotes[noteIndex];
-      }
-      
-      // ADSR envelope for note
-      const attackTime = 0.05;
-      const releaseTime = 0.1;
-      const sustainLevel = 0.8;
-      let envelope = 0;
-      
-      if (noteTime < attackTime) {
-        envelope = noteTime / attackTime;
-      } else if (noteTime < noteDuration - releaseTime - noteGap) {
-        envelope = sustainLevel;
-      } else if (noteTime < noteDuration - noteGap) {
-        envelope = sustainLevel * (1 - (noteTime - (noteDuration - releaseTime - noteGap)) / releaseTime);
-      }
-      
-      // Generate sample
-      const sample = Math.sin(phase_osc) * intensity * envelope;
-      output[i] = sample;
-      
-      // Update phase for current frequency
-      phase_osc += twoPiOverSr * currentFreq;
-      if (phase_osc > 2 * Math.PI) {
-        phase_osc -= 2 * Math.PI;
-      }
-    }
-  }
 
   /**
    * Concatenate phase audio chunks with crossfades
@@ -688,12 +543,83 @@ export class OfflineRenderer {
     const renderedBuffer = await offlineCtx.startRendering();
 
     onProgress?.({
+      phase: 'Normalizing',
+      stage: 'normalizing',
+      progress: 85,
+      message: 'Normalizing audio levels...',
+    });
+
+    // Apply normalization to the rendered buffer
+    const normalizedBuffer = this.normalizeRenderedBuffer(renderedBuffer, config);
+
+    onProgress?.({
       phase: 'Complete',
       stage: 'done',
       progress: 100,
       message: 'Rendering complete!',
     });
 
-    return renderedBuffer;
+    return normalizedBuffer;
+  }
+
+  /**
+   * Normalize a rendered AudioBuffer for consistent loudness
+   */
+  private normalizeRenderedBuffer(
+    buffer: AudioBuffer,
+    config: JourneyConfig
+  ): AudioBuffer {
+    const safety = new SafetyProcessor(this.sampleRate);
+    
+    // Check if journey has full-range audio
+    const hasFullRangeAudio = false;
+    
+    // Create new offline context for the normalized buffer
+    const offlineCtx = new OfflineAudioContext({
+      numberOfChannels: buffer.numberOfChannels,
+      length: buffer.length,
+      sampleRate: this.sampleRate,
+    });
+    
+    const normalizedBuffer = offlineCtx.createBuffer(
+      buffer.numberOfChannels,
+      buffer.length,
+      this.sampleRate
+    );
+    
+    // Process each channel
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const inputData = buffer.getChannelData(ch);
+      const outputData = normalizedBuffer.getChannelData(ch);
+      
+      // Copy input to a new array for processing (explicit type to avoid TypeScript ArrayBufferLike issues)
+      let processed: Float32Array = new Float32Array(inputData.length);
+      processed.set(inputData);
+      
+      if (hasFullRangeAudio) {
+        // Use LUFS normalization for full-range audio
+        processed = safety.processFullRangeChain(processed, -14, -1, true);
+      } else {
+        // Use RMS normalization with vibroacoustic filtering
+        const safetyConfig = config.safety || {
+          max_rms_db: -12,
+          peak_ceiling_db: -1,
+          lowpass_hz: 120,
+          highpass_hz: 20,
+        };
+        processed = safety.processChain(
+          processed,
+          safetyConfig.max_rms_db,
+          safetyConfig.peak_ceiling_db,
+          safetyConfig.lowpass_hz,
+          safetyConfig.highpass_hz
+        );
+      }
+      
+      // Copy processed data to output
+      outputData.set(processed);
+    }
+    
+    return normalizedBuffer;
   }
 }

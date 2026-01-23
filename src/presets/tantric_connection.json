@@ -12,8 +12,7 @@
   "layers": {
     "base_carrier": true,
     "support_carrier": true,
-    "texture_layer": false,
-    "melody_layer": true
+    "texture_layer": false
   },
   "phases": [
     {
@@ -36,12 +35,7 @@
       "fm_depth": 0.05,
       "fm_rate": 0.05,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Heart Opening",
@@ -63,12 +57,7 @@
       "fm_depth": 0.08,
       "fm_rate": 0.04,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2375,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Building Wave 1",
@@ -90,12 +79,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.06,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.275,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Soft Plateau",
@@ -117,12 +101,7 @@
       "fm_depth": 0.08,
       "fm_rate": 0.04,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2875,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Building Wave 2",
@@ -144,12 +123,7 @@
       "fm_depth": 0.12,
       "fm_rate": 0.07,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.30000000000000004,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Peak Energy",
@@ -172,12 +146,7 @@
       "fm_rate": 0.08,
       "rhythm_mode": "heartbeat",
       "entrainment_mode": "heartbeat",
-      "entrainment_rate": 1.2,
-      "melody_enabled": true,
-      "melody_style": "arpeggio",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.3375,
-      "melody_density": "sparse"
+      "entrainment_rate": 1.2
     },
     {
       "name": "Sustained Bliss",
@@ -199,12 +168,7 @@
       "fm_depth": 0.1,
       "fm_rate": 0.05,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "evolving",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.32499999999999996,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Gentle Return",
@@ -226,12 +190,7 @@
       "fm_depth": 0.06,
       "fm_rate": 0.04,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.25,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     },
     {
       "name": "Integration",
@@ -253,12 +212,7 @@
       "fm_depth": 0.04,
       "fm_rate": 0.03,
       "rhythm_mode": "breathing",
-      "entrainment_mode": "breathing",
-      "melody_enabled": true,
-      "melody_style": "mixed",
-      "melody_scale": "pentatonic_major",
-      "melody_intensity": 0.2,
-      "melody_density": "sparse"
+      "entrainment_mode": "breathing"
     }
   ]
 }

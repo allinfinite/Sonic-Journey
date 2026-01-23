@@ -3,12 +3,9 @@
  * Enables live playback and modulation of vibroacoustic journeys
  */
 
-import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode, NovaPattern } from '../types/journey';
+import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode, NovaPattern, MelodyStyle, MelodyScale, NoteDensity } from '../types/journey';
 import { ENTRAINMENT_PRESETS, NOVA_PATTERN_PRESETS } from '../types/journey';
 import { novaController, getNovaFrequencyForPhase } from './NovaController';
-import type { MelodyStyle, MelodyScale, NoteDensity, MelodyGeneratorConfig } from '../types/melodyGenerator';
-import { foundationToMelodyRoot } from '../types/melodyGenerator';
-import { createEnhancedMelodyEngine } from './melodyGenerator/EnhancedMelodyEngine';
 import { createPsychedelicEngine, type PsychedelicEngine, type EnhancementPreset } from './PsychedelicEngine';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
@@ -54,6 +51,18 @@ export class SynthEngine {
   private fmLfo: { osc: OscillatorNode | null; gain: GainNode | null } = { osc: null, gain: null };
   private master: GainNode | null = null;
   
+  // Normalization and limiting nodes
+  private analyser: AnalyserNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
+  private adaptiveGain: GainNode | null = null;
+  
+  // Adaptive gain control state
+  private adaptiveGainEnabled = true;
+  private targetRmsDb = -12; // Target RMS level in dB
+  private currentAdaptiveGain = 1.0;
+  private adaptiveGainSmoothing = 0.95; // Higher = slower response
+  private analysisBuffer: Float32Array<ArrayBuffer> | null = null;
+  
   // Binaural beats
   private binaural: {
     left: { osc: OscillatorNode | null; gain: GainNode | null; panner: StereoPannerNode | null };
@@ -69,17 +78,15 @@ export class SynthEngine {
     carrierFreq: 200, // Default carrier frequency
   };
 
-  // Melody layer - enhanced with Tone.js
+  // Melody layer placeholder (melody engine not yet implemented)
   private melody: {
-    enhancedEngine: ReturnType<typeof createEnhancedMelodyEngine> | null;
     enabled: boolean;
     style: MelodyStyle;
     scale: MelodyScale;
     intensity: number;
     density: NoteDensity;
-    currentPhaseName: string | null;  // Track by name, not object reference
+    currentPhaseName: string | null;
   } = {
-    enhancedEngine: null,
     enabled: false,
     style: 'mixed',
     scale: 'pentatonic_minor',
@@ -165,10 +172,31 @@ export class SynthEngine {
   private createAudioGraph(): void {
     if (!this.ctx) return;
 
-    // Master gain
+    // Create limiter (dynamics compressor configured as a limiter)
+    this.limiter = this.ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -3; // Start limiting at -3 dB
+    this.limiter.knee.value = 3; // Soft knee for transparent limiting
+    this.limiter.ratio.value = 20; // High ratio for limiting behavior
+    this.limiter.attack.value = 0.003; // Fast attack to catch peaks
+    this.limiter.release.value = 0.1; // Moderate release
+    this.limiter.connect(this.ctx.destination);
+
+    // Create adaptive gain node (goes before limiter)
+    this.adaptiveGain = this.ctx.createGain();
+    this.adaptiveGain.gain.value = 1.0;
+    this.adaptiveGain.connect(this.limiter);
+
+    // Create analyser for level monitoring (connected in parallel)
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.analysisBuffer = new Float32Array(this.analyser.fftSize);
+
+    // Master gain (pre-normalization)
     this.master = this.ctx.createGain();
     this.master.gain.value = 0;
-    this.master.connect(this.ctx.destination);
+    this.master.connect(this.adaptiveGain);
+    this.master.connect(this.analyser); // Also feed to analyser for level monitoring
 
     // Foundation oscillator (base carrier)
     this.foundation.osc = this.ctx.createOscillator();
@@ -237,7 +265,6 @@ export class SynthEngine {
     this.binaural.right.gain.connect(this.binaural.right.panner);
     this.binaural.right.panner.connect(this.master);
 
-    // Melody layer - will be initialized with Tone.js when needed
     // Tone.js handles its own audio graph
 
     // Start all oscillators
@@ -340,9 +367,9 @@ export class SynthEngine {
       }
     }
 
-    // Pause melody layer
-    if (this.melody.enabled && this.melody.enhancedEngine) {
-      this.melody.enhancedEngine.stop();
+    // Pause melody layer (placeholder - melody engine not yet implemented)
+    if (this.melody.enabled) {
+      // Will pause melody when implemented
     }
 
     this.onPlayStateChange?.(false);
@@ -386,14 +413,6 @@ export class SynthEngine {
       this.binaural.beatFreq = null;
     }
 
-    // Stop melody layer
-    if (this.melody.enhancedEngine) {
-      this.melody.enhancedEngine.stop();
-      this.melody.enhancedEngine.dispose();
-      this.melody.enhancedEngine = null;
-    }
-    this.melody.enabled = false;
-    this.melody.currentPhaseName = null;
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
@@ -432,9 +451,73 @@ export class SynthEngine {
       this.updateFromTimeline();
     }
 
+    // Update adaptive gain control for volume normalization
+    this.updateAdaptiveGain();
+
     this.onTimeUpdate?.(this._currentTime);
     this.animationId = requestAnimationFrame(this.tick);
   };
+
+  /**
+   * Update adaptive gain to maintain consistent volume levels
+   * Uses RMS measurement to smoothly adjust gain
+   */
+  private updateAdaptiveGain(): void {
+    if (!this.adaptiveGainEnabled || !this.analyser || !this.analysisBuffer || !this.ctx || !this.adaptiveGain) {
+      return;
+    }
+
+    // Get time domain data for RMS calculation
+    this.analyser.getFloatTimeDomainData(this.analysisBuffer);
+
+    // Calculate RMS of current buffer
+    let sumSquares = 0;
+    for (let i = 0; i < this.analysisBuffer.length; i++) {
+      sumSquares += this.analysisBuffer[i] * this.analysisBuffer[i];
+    }
+    const rms = Math.sqrt(sumSquares / this.analysisBuffer.length);
+
+    // Skip if essentially silent (avoid amplifying noise)
+    if (rms < 0.0001) return;
+
+    // Convert to dB
+    const rmsDb = 20 * Math.log10(rms);
+
+    // Calculate desired gain adjustment
+    const gainDb = this.targetRmsDb - rmsDb;
+    
+    // Clamp to reasonable range (-6 to +6 dB adjustment)
+    const clampedGainDb = Math.max(-6, Math.min(6, gainDb));
+    const targetGain = Math.pow(10, clampedGainDb / 20);
+
+    // Smooth the gain change to prevent pumping
+    this.currentAdaptiveGain = 
+      this.adaptiveGainSmoothing * this.currentAdaptiveGain + 
+      (1 - this.adaptiveGainSmoothing) * targetGain;
+
+    // Apply the adaptive gain
+    const now = this.ctx.currentTime;
+    this.adaptiveGain.gain.setTargetAtTime(this.currentAdaptiveGain, now, 0.1);
+  }
+
+  /**
+   * Enable or disable adaptive gain control
+   */
+  setAdaptiveGainEnabled(enabled: boolean): void {
+    this.adaptiveGainEnabled = enabled;
+    if (!enabled && this.adaptiveGain && this.ctx) {
+      // Reset to unity gain when disabled
+      this.adaptiveGain.gain.setTargetAtTime(1.0, this.ctx.currentTime, 0.1);
+      this.currentAdaptiveGain = 1.0;
+    }
+  }
+
+  /**
+   * Set target RMS level for adaptive gain
+   */
+  setTargetLevel(targetRmsDb: number): void {
+    this.targetRmsDb = targetRmsDb;
+  }
 
   /**
    * Update audio parameters from journey timeline
@@ -655,14 +738,8 @@ export class SynthEngine {
           if (this.atmosphere.gain) {
             this.atmosphere.gain.gain.setTargetAtTime(layers.atmosphere ? 0.15 : 0, now, rampTime);
           }
-          if (this.melody.enhancedEngine) {
-            if (layers.melody) {
-              this.melody.enhancedEngine.setVolume(this.melody.intensity);
-            } else {
-              this.melody.enhancedEngine.stop();
-            }
-            this.melody.enabled = layers.melody;
-          }
+          // Melody layer (placeholder - melody engine not yet implemented)
+          this.melody.enabled = layers.melody;
           this.currentParams.layers = layers;
         }
         break;
@@ -991,8 +1068,9 @@ export class SynthEngine {
 
   /**
    * Update melody layer based on current phase
+   * Placeholder - melody engine not yet implemented
    */
-  private async updateMelody(phase: PhaseConfig | null, foundationFreq: number, entrainmentMode: EntrainmentMode): Promise<void> {
+  private async updateMelody(phase: PhaseConfig | null, _foundationFreq: number, _entrainmentMode: EntrainmentMode): Promise<void> {
     if (!phase || !this.ctx) return;
 
     // Check if melody is enabled for this phase
@@ -1000,24 +1078,8 @@ export class SynthEngine {
                           (phase.melody_enabled !== false);
 
     if (!melodyEnabled) {
-      // Disable melody
-      if (this.melody.enabled && this.melody.enhancedEngine) {
-        this.melody.enhancedEngine.stop();
-        this.melody.enabled = false;
-      }
+      this.melody.enabled = false;
       return;
-    }
-    
-    // Debug: log when melody should be enabled (only once per phase change)
-    if (!this.melody.enabled || this.melody.currentPhaseName !== phase.name) {
-      console.log('Enabling melody layer', {
-        melody_layer: this.journeyConfig?.layers?.melody_layer,
-        melody_enabled: phase.melody_enabled,
-        style: phase.melody_style || 'mixed',
-        scale: phase.melody_scale || 'pentatonic_minor',
-        intensity: phase.melody_intensity ?? 0.3,
-        density: phase.melody_density || 'moderate',
-      });
     }
 
     // Get melody settings from phase or use defaults
@@ -1026,79 +1088,7 @@ export class SynthEngine {
     const intensity = phase.melody_intensity ?? 0.3;
     const density = phase.melody_density || 'moderate';
 
-    // Check if we need to recreate the engine (style/scale changed)
-    // Compare by phase name to avoid recreating on every frame due to object reference changes
-    const needsRecreate = !this.melody.enhancedEngine || 
-                         this.melody.style !== style ||
-                         this.melody.scale !== scale ||
-                         this.melody.currentPhaseName !== phase.name;
-
-    if (needsRecreate) {
-      // Dispose old engine
-      if (this.melody.enhancedEngine) {
-        this.melody.enhancedEngine.dispose();
-      }
-
-      // Create new enhanced engine
-      const config: MelodyGeneratorConfig = {
-        frequencyMin: 200,
-        frequencyMax: 800,
-        rootFrequency: foundationToMelodyRoot(foundationFreq),
-        scale,
-        intensity,
-        droneWeight: style === 'drone' ? 1 : 0,
-        arpeggioWeight: style === 'arpeggio' ? 1 : 0,
-        evolvingWeight: style === 'evolving' ? 1 : 0,
-        harmonicWeight: style === 'harmonic' ? 1 : 0,
-        noteDensity: density,
-        stereoWidth: 0.6,
-        spaceAmount: 0.6,
-        attackTime: 0.1,
-        releaseTime: 0.5,
-        filterCutoff: 2000,
-        filterResonance: 0.2,
-      };
-
-      this.melody.enhancedEngine = createEnhancedMelodyEngine(config, {
-        reverbAmount: 0.6,
-        delayTime: 0.3,
-        delayFeedback: 0.25,
-        chorusDepth: 0.5,
-      });
-
-      // Initialize and start
-      try {
-        // Set Tone.js to use the same AudioContext as SynthEngine
-        if (this.ctx && typeof window !== 'undefined') {
-          const Tone = await import('tone');
-          // Set Tone.js to use our AudioContext
-          Tone.setContext(this.ctx);
-          if (Tone.context.state !== 'running') {
-            await Tone.context.resume();
-          }
-        }
-        
-        await this.melody.enhancedEngine.initialize();
-        await this.melody.enhancedEngine.start(
-          foundationFreq,
-          style,
-          scale,
-          density,
-          entrainmentMode
-        );
-      } catch (error) {
-        // Log error for debugging
-        console.error('Failed to start enhanced melody engine:', error);
-        return;
-      }
-    }
-
-    // Update volume if changed
-    if (this.melody.intensity !== intensity && this.melody.enhancedEngine) {
-      this.melody.enhancedEngine.setVolume(intensity);
-    }
-
-    // Update state
+    // Update state (melody engine not yet implemented)
     this.melody.enabled = true;
     this.melody.style = style;
     this.melody.scale = scale;
@@ -1198,16 +1188,38 @@ export class SynthEngine {
       this.psychedelicEngineInitialized = false;
     }
 
-    // Dispose melody engine
-    if (this.melody.enhancedEngine) {
-      this.melody.enhancedEngine.dispose();
-      this.melody.enhancedEngine = null;
-    }
+    // Clean up normalization nodes
+    this.analyser = null;
+    this.limiter = null;
+    this.adaptiveGain = null;
+    this.analysisBuffer = null;
 
     if (this.ctx) {
       this.ctx.close();
       this.ctx = null;
     }
+  }
+
+  /**
+   * Get current audio levels for UI feedback
+   */
+  getCurrentLevels(): { rms: number; peak: number } {
+    if (!this.analyser || !this.analysisBuffer) {
+      return { rms: 0, peak: 0 };
+    }
+
+    this.analyser.getFloatTimeDomainData(this.analysisBuffer);
+
+    let sumSquares = 0;
+    let peak = 0;
+    for (let i = 0; i < this.analysisBuffer.length; i++) {
+      const sample = Math.abs(this.analysisBuffer[i]);
+      sumSquares += this.analysisBuffer[i] * this.analysisBuffer[i];
+      if (sample > peak) peak = sample;
+    }
+
+    const rms = Math.sqrt(sumSquares / this.analysisBuffer.length);
+    return { rms, peak };
   }
 }
 
