@@ -135,6 +135,9 @@ export interface PhaseConfig {
   melody_scale?: MelodyScale;      // Musical scale
   melody_intensity?: number;       // 0-1, volume/presence of melody
   melody_density?: NoteDensity;    // Note density
+  // AI music generation settings
+  music_prompt?: string;           // Text prompt for Lyria 2 music generation
+  music_vocalization?: boolean;    // Enable vocal textures (oohs, aahs, humming)
   // Audio enhancement settings
   harmonic_richness?: number;      // 0-1, amount of harmonic content added
   effects_intensity?: number;      // 0-1, overall effects level

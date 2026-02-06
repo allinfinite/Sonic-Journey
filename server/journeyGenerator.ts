@@ -7,9 +7,16 @@ import OpenAI from 'openai';
 import type { JourneyConfig, PhaseConfig, RhythmMode, NovaPattern } from '../src/types/journey';
 import { DEFAULT_LAYERS, DEFAULT_SAFETY } from '../src/types/journey';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 export interface GenerationRequest {
   prompt: string;
@@ -28,7 +35,7 @@ export async function generateJourney(
   const userPrompt = createUserPrompt(prompt, duration);
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o', // Using GPT-4o (latest available)
       messages: [
         { role: 'system', content: systemPrompt },

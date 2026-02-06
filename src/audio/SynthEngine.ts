@@ -7,6 +7,7 @@ import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMo
 import { ENTRAINMENT_PRESETS, NOVA_PATTERN_PRESETS } from '../types/journey';
 import { novaController, getNovaFrequencyForPhase } from './NovaController';
 import { createPsychedelicEngine, type PsychedelicEngine, type EnhancementPreset } from './PsychedelicEngine';
+import { musicLayer } from './MusicLayer';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
@@ -265,7 +266,8 @@ export class SynthEngine {
     this.binaural.right.gain.connect(this.binaural.right.panner);
     this.binaural.right.panner.connect(this.master);
 
-    // Tone.js handles its own audio graph
+    // Initialize music layer (AI-generated music from Lyria 2)
+    musicLayer.init(this.ctx, this.master);
 
     // Start all oscillators
     this.foundation.osc.start();
@@ -288,6 +290,7 @@ export class SynthEngine {
       this.currentParams.layers.harmony = config.layers.support_carrier !== false;
       this.currentParams.layers.atmosphere = config.layers.texture_layer === true;
       this.currentParams.layers.melody = config.layers.melody_layer === true;
+      musicLayer.setEnabled(this.currentParams.layers.melody);
     }
 
     if (this.isPlaying) {
@@ -367,10 +370,7 @@ export class SynthEngine {
       }
     }
 
-    // Pause melody layer (placeholder - melody engine not yet implemented)
-    if (this.melody.enabled) {
-      // Will pause melody when implemented
-    }
+    // Pause music layer (paused via AudioContext.suspend above)
 
     this.onPlayStateChange?.(false);
   }
@@ -413,6 +413,8 @@ export class SynthEngine {
       this.binaural.beatFreq = null;
     }
 
+    // Stop music layer
+    musicLayer.stopStreaming();
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
@@ -738,8 +740,9 @@ export class SynthEngine {
           if (this.atmosphere.gain) {
             this.atmosphere.gain.gain.setTargetAtTime(layers.atmosphere ? 0.15 : 0, now, rampTime);
           }
-          // Melody layer (placeholder - melody engine not yet implemented)
+          // Music/melody layer
           this.melody.enabled = layers.melody;
+          musicLayer.setEnabled(layers.melody);
           this.currentParams.layers = layers;
         }
         break;
@@ -1067,34 +1070,83 @@ export class SynthEngine {
   }
 
   /**
-   * Update melody layer based on current phase
-   * Placeholder - melody engine not yet implemented
+   * Update melody/music layer based on current phase
+   * Uses MusicLayer to play AI-generated clips from Lyria 2
    */
   private async updateMelody(phase: PhaseConfig | null, _foundationFreq: number, _entrainmentMode: EntrainmentMode): Promise<void> {
     if (!phase || !this.ctx) return;
 
-    // Check if melody is enabled for this phase
-    const melodyEnabled = (this.journeyConfig?.layers?.melody_layer === true) && 
+    // Check if melody/music is enabled for this phase
+    const melodyEnabled = (this.journeyConfig?.layers?.melody_layer === true) &&
                           (phase.melody_enabled !== false);
 
     if (!melodyEnabled) {
       this.melody.enabled = false;
+      musicLayer.setEnabled(false);
       return;
     }
 
-    // Get melody settings from phase or use defaults
-    const style = phase.melody_style || 'mixed';
-    const scale = phase.melody_scale || 'pentatonic_minor';
-    const intensity = phase.melody_intensity ?? 0.3;
-    const density = phase.melody_density || 'moderate';
-
-    // Update state (melody engine not yet implemented)
+    // Update melody state
     this.melody.enabled = true;
-    this.melody.style = style;
-    this.melody.scale = scale;
-    this.melody.intensity = intensity;
-    this.melody.density = density;
+    this.melody.style = phase.melody_style || 'mixed';
+    this.melody.scale = phase.melody_scale || 'pentatonic_minor';
+    this.melody.intensity = phase.melody_intensity ?? 0.3;
+    this.melody.density = phase.melody_density || 'moderate';
     this.melody.currentPhaseName = phase.name;
+
+    // Set music layer volume from melody intensity
+    musicLayer.setVolume(this.melody.intensity);
+    musicLayer.setEnabled(true);
+
+    // Build a prompt from phase parameters and start/update streaming
+    if (this.isPlaying) {
+      const basePrompt = this.buildMusicPromptFromPhase(phase);
+      const prompt = phase.music_prompt
+        ? `${phase.music_prompt}; ${basePrompt}`
+        : basePrompt;
+      musicLayer.startStreaming(prompt, phase.music_vocalization === true);
+    }
+  }
+
+  /**
+   * Build a music prompt from phase parameters for Lyria RealTime
+   */
+  private buildMusicPromptFromPhase(phase: PhaseConfig): string {
+    const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
+    const avgAmp = (phase.amplitude.start + phase.amplitude.end) / 2;
+    const freqTrend = phase.frequency.end - phase.frequency.start;
+
+    let mood: string;
+    if (avgFreq <= 32) mood = 'deeply meditative and hypnotic';
+    else if (avgFreq <= 40) mood = 'calm and grounding';
+    else if (avgFreq <= 50) mood = 'peaceful and centered';
+    else if (avgFreq <= 62) mood = 'gently uplifting';
+    else if (avgFreq <= 75) mood = 'warm and energizing';
+    else mood = 'bright and activating';
+
+    let movement = '';
+    if (freqTrend < -5) movement = ', gradually slowing down and deepening';
+    else if (freqTrend > 5) movement = ', gradually building and rising';
+
+    let dynamics: string;
+    if (avgAmp <= 0.3) dynamics = 'very soft and gentle';
+    else if (avgAmp <= 0.5) dynamics = 'soft';
+    else if (avgAmp <= 0.7) dynamics = 'moderate intensity';
+    else dynamics = 'full and present';
+
+    let style: string;
+    switch (phase.rhythm_mode) {
+      case 'breathing': style = 'slow ambient pads with a breathing feel'; break;
+      case 'heartbeat': style = 'rhythmic pulse with warm tones'; break;
+      case 'delta': style = 'deep drone with sub-bass textures'; break;
+      case 'theta': style = 'ethereal ambient with gentle evolving textures'; break;
+      case 'alpha': style = 'flowing ambient with soft melodic elements'; break;
+      case 'beta': style = 'focused minimal electronic with subtle rhythm'; break;
+      case 'gamma': style = 'sparkling ambient textures with high clarity'; break;
+      default: style = 'ambient instrumental with soft synthesizers'; break;
+    }
+
+    return [style, `${mood}${movement}`, dynamics].join(', ');
   }
 
   /**
@@ -1180,6 +1232,9 @@ export class SynthEngine {
    */
   dispose(): void {
     this.stop();
+
+    // Dispose music layer
+    musicLayer.dispose();
 
     // Dispose psychedelic engine
     if (this.psychedelicEngine) {

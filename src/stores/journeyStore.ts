@@ -126,6 +126,7 @@ interface JourneyState {
 
   // Generation actions
   generateJourney: (prompt: string, duration: number) => Promise<void>;
+
 }
 
 export const useJourneyStore = create<JourneyState>((set, get) => ({

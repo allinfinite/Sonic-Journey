@@ -2,8 +2,9 @@
  * PhaseControls - Parameter sliders for adjusting phase settings
  */
 
+import { useState } from 'react';
 import { useJourneyStore } from '../../stores/journeyStore';
-import type { RhythmMode, NovaPattern } from '../../types/journey';
+import type { RhythmMode, NovaPattern, PhaseConfig } from '../../types/journey';
 import { NOVA_PATTERN_PRESETS } from '../../types/journey';
 import { mapRhythmModeToNova, novaController } from '../../audio/NovaController';
 
@@ -53,6 +54,64 @@ function getPatternDescription(pattern: NovaPattern | undefined, rhythmMode?: Rh
     default:
       return `${pattern.type} @ ${pattern.baseFrequency} Hz`;
   }
+}
+
+/**
+ * Build a Lyria 2 music prompt from a journey phase's parameters
+ */
+function buildMusicPrompt(phase: PhaseConfig, _journeyName?: string): string {
+  const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
+  const avgAmp = (phase.amplitude.start + phase.amplitude.end) / 2;
+  const freqTrend = phase.frequency.end - phase.frequency.start;
+
+  // Energy / mood from frequency range
+  let mood: string;
+  if (avgFreq <= 32) mood = 'deeply meditative and hypnotic';
+  else if (avgFreq <= 40) mood = 'calm and grounding';
+  else if (avgFreq <= 50) mood = 'peaceful and centered';
+  else if (avgFreq <= 62) mood = 'gently uplifting';
+  else if (avgFreq <= 75) mood = 'warm and energizing';
+  else mood = 'bright and activating';
+
+  // Movement from frequency direction
+  let movement = '';
+  if (freqTrend < -5) movement = ', gradually slowing down and deepening';
+  else if (freqTrend > 5) movement = ', gradually building and rising';
+
+  // Intensity from amplitude
+  let dynamics: string;
+  if (avgAmp <= 0.3) dynamics = 'very soft and gentle';
+  else if (avgAmp <= 0.5) dynamics = 'soft';
+  else if (avgAmp <= 0.7) dynamics = 'moderate intensity';
+  else dynamics = 'full and present';
+
+  // Style from rhythm mode
+  let style: string;
+  switch (phase.rhythm_mode) {
+    case 'breathing': style = 'slow ambient pads with a breathing feel'; break;
+    case 'heartbeat': style = 'rhythmic pulse with warm tones'; break;
+    case 'delta': style = 'deep drone with sub-bass textures'; break;
+    case 'theta': style = 'ethereal ambient with gentle evolving textures'; break;
+    case 'alpha': style = 'flowing ambient with soft melodic elements'; break;
+    case 'beta': style = 'focused minimal electronic with subtle rhythm'; break;
+    case 'gamma': style = 'sparkling ambient textures with high clarity'; break;
+    default: style = 'ambient instrumental with soft synthesizers'; break;
+  }
+
+  const parts = [
+    style,
+    `${mood}${movement}`,
+    dynamics,
+  ];
+
+  // Add context from phase name if it's descriptive
+  const name = phase.name.toLowerCase();
+  if (name.includes('rest') || name.includes('sleep')) parts.push('suitable for deep rest');
+  else if (name.includes('focus') || name.includes('energy')) parts.push('with a sense of clarity');
+  else if (name.includes('settl') || name.includes('open')) parts.push('with a welcoming warmth');
+  else if (name.includes('return') || name.includes('clos') || name.includes('home')) parts.push('with gentle resolution');
+
+  return parts.join(', ');
 }
 
 export function PhaseControls() {
@@ -636,6 +695,168 @@ export function PhaseControls() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* AI Music Layer (Lyria 2) */}
+      <div className="space-y-2 pt-2 border-t border-[var(--color-surface-light)]">
+        <div className="flex items-center justify-between">
+          <label className="text-sm text-[var(--color-text-muted)] flex items-center gap-2">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            AI Music (Lyria 2)
+          </label>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={phase.melody_enabled === true}
+              onChange={(e) => {
+                updatePhase(selectedPhaseIndex, { melody_enabled: e.target.checked });
+              }}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-[var(--color-surface-light)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+          </label>
+        </div>
+        {phase.melody_enabled && (
+          <MusicControls
+            phase={phase}
+            journeyName={journey.name}
+            isPlaying={isPlaying}
+            updatePhase={(updates) => updatePhase(selectedPhaseIndex, updates)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MusicControls({
+  phase,
+  journeyName,
+  isPlaying,
+  updatePhase,
+}: {
+  phase: PhaseConfig;
+  journeyName: string;
+  isPlaying: boolean;
+  updatePhase: (updates: Partial<PhaseConfig>) => void;
+}) {
+  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
+  const [draftPrompt, setDraftPrompt] = useState(phase.music_prompt || '');
+  const autoPrompt = buildMusicPrompt(phase, journeyName);
+  const activePrompt = phase.music_prompt
+    ? `${phase.music_prompt}; ${autoPrompt}`
+    : autoPrompt;
+  const isDraftDirty = draftPrompt !== (phase.music_prompt || '');
+
+  return (
+    <div className="space-y-3 pl-6">
+      {/* Streaming status */}
+      <div className="flex items-center gap-2">
+        {isPlaying ? (
+          <span className="text-xs text-green-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            Streaming music
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-text-muted)]/40" />
+            Music streams automatically when playing
+          </span>
+        )}
+      </div>
+
+      {/* Auto-generated prompt preview */}
+      <p className="text-xs text-[var(--color-text-muted)] italic leading-relaxed">
+        {activePrompt}
+      </p>
+
+      {/* Customize prompt toggle */}
+      <button
+        onClick={() => {
+          setShowCustomPrompt(!showCustomPrompt);
+          if (!showCustomPrompt) setDraftPrompt(phase.music_prompt || '');
+        }}
+        className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1"
+      >
+        <svg className={`w-3 h-3 transition-transform ${showCustomPrompt ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        {phase.music_prompt ? 'Edit custom prompt' : 'Customize prompt'}
+      </button>
+
+      {showCustomPrompt && (
+        <div className="space-y-2">
+          <textarea
+            value={draftPrompt}
+            onChange={(e) => setDraftPrompt(e.target.value)}
+            placeholder="e.g. drum and bass, heavy bass drops, tribal drums"
+            rows={2}
+            className="w-full bg-[var(--color-surface-light)] border border-white/10 rounded-lg px-3 py-2 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]/40 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                updatePhase({ music_prompt: draftPrompt || undefined });
+              }}
+              disabled={!isDraftDirty}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                isDraftDirty
+                  ? 'bg-[var(--color-primary)] text-white hover:opacity-90'
+                  : 'bg-[var(--color-surface-light)] text-[var(--color-text-muted)] cursor-default'
+              }`}
+            >
+              Apply
+            </button>
+            {phase.music_prompt && (
+              <button
+                onClick={() => {
+                  setDraftPrompt('');
+                  updatePhase({ music_prompt: undefined });
+                }}
+                className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              >
+                Reset to auto
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Vocalization toggle */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-[var(--color-text-muted)]">
+          Vocalization (oohs, humming)
+        </label>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={phase.music_vocalization === true}
+            onChange={(e) => updatePhase({ music_vocalization: e.target.checked })}
+            className="sr-only peer"
+          />
+          <div className="w-9 h-5 bg-[var(--color-surface-light)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+        </label>
+      </div>
+
+      {/* Volume */}
+      <div className="space-y-1">
+        <div className="flex justify-between items-center">
+          <label className="text-xs text-[var(--color-text-muted)]">Volume</label>
+          <span className="text-xs text-[var(--color-text)]">{Math.round((phase.melody_intensity ?? 0.3) * 100)}%</span>
+        </div>
+        <input
+          type="range"
+          min="5"
+          max="100"
+          step="5"
+          value={(phase.melody_intensity ?? 0.3) * 100}
+          onChange={(e) => updatePhase({ melody_intensity: Number(e.target.value) / 100 })}
+          className="w-full h-1.5 bg-[var(--color-surface-light)] rounded-lg appearance-none cursor-pointer accent-[var(--color-primary)]"
+        />
       </div>
     </div>
   );

@@ -3,11 +3,16 @@
  * Handles bass track generation server-side for better performance
  */
 
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import { processAudioFile } from './audioProcessor.js';
 import { generateJourney } from './journeyGenerator.js';
+import { generateMusic } from './musicGenerator.js';
+import { startMusicSession, updateMusicPrompt, stopMusicSession } from './musicStreamer.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -16,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -104,6 +109,118 @@ app.post('/api/generate-journey', async (req: express.Request, res: express.Resp
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+});
+
+// Generate music endpoint (Lyria 2)
+app.post('/api/generate-music', async (req: express.Request, res: express.Response) => {
+  const { prompt, negativePrompt } = req.body;
+
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  console.log(`Generating music: "${prompt.substring(0, 80)}..."`);
+
+  try {
+    const result = await generateMusic(prompt, negativePrompt);
+    console.log(`Music generated successfully (${result.mimeType})`);
+
+    res.json({
+      success: true,
+      audioContent: result.audioContent,
+      mimeType: result.mimeType,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Music generation error:', errorMessage);
+    if (errorStack) console.error('Stack:', errorStack);
+    res.status(500).json({
+      error: 'Music generation failed',
+      message: errorMessage,
+    });
+  }
+});
+
+// Music streaming endpoint (SSE) - continuous real-time music via Lyria RealTime
+app.get('/api/music-stream', async (req: express.Request, res: express.Response) => {
+  const prompt = req.query.prompt as string;
+  const vocalization = req.query.vocalization === 'true';
+  if (!prompt) {
+    return res.status(400).json({ error: 'prompt query parameter is required' });
+  }
+
+  // Set up SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+
+  console.log(`Music stream started: "${prompt.substring(0, 80)}"${vocalization ? ' [vocalization]' : ''}`);
+
+  try {
+    await startMusicSession(
+      prompt,
+      // onChunk: forward audio data as SSE event
+      (base64Pcm) => {
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ audio: base64Pcm })}\n\n`);
+        }
+      },
+      // onError
+      (error) => {
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+          res.end();
+        }
+      },
+      // onClose
+      () => {
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+          res.end();
+        }
+      },
+      vocalization,
+    );
+  } catch (error) {
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to start music stream' })}\n\n`);
+      res.end();
+    }
+  }
+
+  // Clean up when client disconnects
+  req.on('close', () => {
+    console.log('Music stream: client disconnected');
+    stopMusicSession();
+  });
+});
+
+// Update music stream prompt (for phase transitions)
+app.post('/api/music-stream/prompt', async (req: express.Request, res: express.Response) => {
+  const { prompt, vocalization } = req.body;
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'prompt is required' });
+  }
+
+  try {
+    await updateMusicPrompt(prompt, vocalization);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to update prompt',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Stop music stream
+app.post('/api/music-stream/stop', async (_req: express.Request, res: express.Response) => {
+  await stopMusicSession();
+  res.json({ success: true });
 });
 
 // Serve output files

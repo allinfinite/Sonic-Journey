@@ -22,7 +22,7 @@ function getApiUrl(): string {
   }
   
   // Development fallback - try localhost server first
-  return 'http://localhost:3001';
+  return 'http://localhost:3002';
 }
 
 const API_URL = getApiUrl();
@@ -79,7 +79,7 @@ export async function generateJourney(
     const serverAvailable = await checkServerHealth();
     if (!serverAvailable) {
       throw new Error(
-        'Server is not available. Please ensure the server is running on port 3001. ' +
+        'Server is not available. Please ensure the server is running on port 3002. ' +
         'Run "npm run dev:server" in a separate terminal.'
       );
     }
@@ -96,7 +96,7 @@ export async function generateJourney(
       // Handle network errors (including ERR_BLOCKED_BY_CLIENT)
       if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
         throw new Error(
-          'Failed to connect to server. Please ensure the server is running on port 3001. ' +
+          'Failed to connect to server. Please ensure the server is running on port 3002. ' +
           'If you have a browser extension blocking requests, try disabling it or adding localhost to allowlist.'
         );
       }

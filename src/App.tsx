@@ -96,6 +96,15 @@ function LayerToggles() {
         />
         <span className="text-sm text-[var(--color-text)]">Atmosphere</span>
       </label>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={journey.layers.melody_layer === true}
+          onChange={() => handleToggle('melody_layer')}
+          className="w-4 h-4 rounded accent-[var(--color-primary)]"
+        />
+        <span className="text-sm text-[var(--color-text)]">Music</span>
+      </label>
     </div>
   );
 }
