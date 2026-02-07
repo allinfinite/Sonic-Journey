@@ -239,24 +239,17 @@ export class MusicLayer {
   }
 
   /**
-   * Update the music prompt (for phase transitions) without interrupting playback
+   * Update the music prompt (for phase transitions).
+   * Reconnects the SSE stream with the new prompt so this works in both
+   * Express (stateful) and Vercel serverless (stateless) environments.
    */
   async updatePrompt(prompt: string, vocalization?: boolean): Promise<void> {
     if (!this.isStreaming) return;
     this.currentPrompt = prompt;
     if (vocalization !== undefined) this.currentVocalization = vocalization;
 
-    try {
-      const apiUrl = getApiUrl();
-      await fetch(`${apiUrl}/api/music-stream/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, vocalization: this.currentVocalization }),
-      });
-      console.log('MusicLayer: Prompt updated');
-    } catch (e) {
-      console.error('MusicLayer: Failed to update prompt:', e);
-    }
+    console.log('MusicLayer: Prompt updated, reconnecting stream...');
+    this.connectStream(prompt);
   }
 
   /**
