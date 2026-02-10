@@ -186,8 +186,28 @@ export function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
+          {/* Top row: 4 cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {features.slice(0, 4).map((feature) => (
+              <div
+                key={feature.title}
+                className="p-6 rounded-2xl bg-[var(--color-surface)]/50 border border-white/5 hover:border-[var(--color-primary)]/20 transition-colors group"
+              >
+                <div className="w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center mb-4 group-hover:bg-[var(--color-primary)]/20 transition-colors">
+                  {feature.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+          {/* Bottom row: 3 cards, centered */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[75%] mx-auto">
+            {features.slice(4).map((feature) => (
               <div
                 key={feature.title}
                 className="p-6 rounded-2xl bg-[var(--color-surface)]/50 border border-white/5 hover:border-[var(--color-primary)]/20 transition-colors group"
