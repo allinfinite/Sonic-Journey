@@ -1,730 +1,269 @@
 /**
- * BassGenerator - Main container for bass track generation
- * Includes upload zone, waveform display, and processing controls
+ * BassGenerator - Real-time bass layer that plays alongside user's music
+ * Supports "Manual" mode (user controls) and "Listen" mode (music-reactive via mic)
  */
 
-import { useCallback, useRef, useEffect } from 'react';
-import { useBassStore, decodeAudioFile } from '../../stores/bassStore';
-import { BassControls } from './BassControls';
-import { BassPreview } from './BassPreview';
+import { useEffect, useRef } from 'react';
+import { useBassLayerStore, BASS_LAYER_PRESETS } from '../../stores/bassLayerStore';
+import type { BassLayerMode } from '../../stores/bassLayerStore';
+import { BassLayerControls } from './BassControls';
+import { KEY_FREQUENCIES } from '../../types/bassLayer';
+
+function ModeToggle() {
+  const { mode, setMode } = useBassLayerStore();
+
+  const modes: { id: BassLayerMode; label: string; desc: string }[] = [
+    { id: 'manual', label: 'Manual', desc: 'Set controls yourself' },
+    { id: 'listen', label: 'Listen', desc: 'Reacts to your music' },
+  ];
+
+  return (
+    <div className="flex rounded-xl bg-[var(--color-surface-light)] p-1">
+      {modes.map((m) => (
+        <button
+          key={m.id}
+          onClick={() => setMode(m.id)}
+          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            mode === m.id
+              ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-md'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          <span className="flex items-center justify-center gap-2">
+            {m.id === 'listen' && (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            )}
+            {m.id === 'manual' && (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            )}
+            {m.label}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ListenDisplay() {
+  const { analysisResult, listenError, isPlaying } = useBassLayerStore();
+
+  if (listenError) {
+    return (
+      <div className="bg-[var(--color-error)]/10 border border-[var(--color-error)]/30 rounded-xl p-4 text-center">
+        <p className="text-sm text-[var(--color-error)]">{listenError}</p>
+      </div>
+    );
+  }
+
+  if (!isPlaying) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-xl p-4 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Press play to start listening to your music
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)]/70 mt-1">
+          Uses your microphone to detect bass frequencies, energy, and tempo
+        </p>
+      </div>
+    );
+  }
+
+  if (!analysisResult) {
+    return (
+      <div className="bg-[var(--color-surface)] rounded-xl p-4 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+          <p className="text-sm text-[var(--color-text-muted)]">Listening...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { dominantFrequency, musicalKey, energy, bpm, beatDetected } = analysisResult;
+  const keyFreq = KEY_FREQUENCIES[musicalKey];
+
+  return (
+    <div className="bg-[var(--color-surface)] rounded-2xl p-4 sm:p-5 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-2 h-2 rounded-full ${beatDetected ? 'bg-[var(--color-accent)] scale-150' : 'bg-[var(--color-primary)]'} transition-all`} />
+        <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Live Analysis</span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Detected Key */}
+        <div className="bg-[var(--color-surface-light)] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Key</p>
+          <p className="text-2xl font-bold text-[var(--color-text)]">{musicalKey}</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">{keyFreq.toFixed(1)} Hz</p>
+        </div>
+
+        {/* Detected Frequency */}
+        <div className="bg-[var(--color-surface-light)] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Bass Freq</p>
+          <p className="text-2xl font-bold text-[var(--color-text)] font-mono">{dominantFrequency.toFixed(0)}</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">Hz</p>
+        </div>
+
+        {/* Energy */}
+        <div className="bg-[var(--color-surface-light)] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Energy</p>
+          <p className="text-2xl font-bold text-[var(--color-text)]">{Math.round(energy * 100)}%</p>
+          <div className="mt-1 h-1 rounded-full bg-[var(--color-surface)] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] transition-all duration-100"
+              style={{ width: `${energy * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* BPM */}
+        <div className="bg-[var(--color-surface-light)] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Tempo</p>
+          <p className="text-2xl font-bold text-[var(--color-text)] font-mono">{bpm || '...'}</p>
+          <p className="text-[10px] text-[var(--color-text-muted)]">BPM</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function BassGenerator() {
   const {
-    uploadState,
-    uploadedFile,
-    analysisState,
-    analysisResult,
-    generationState,
-    progress,
-    processingMode,
-    serverAvailable,
-    setUploadedFile,
-    setOriginalBuffer,
-    setUploadState,
-    processAudio,
-    setProcessingMode,
-    checkServerStatus,
-    reset,
-  } = useBassStore();
-  
-  // Check server status on mount
+    mode,
+    isPlaying,
+    config,
+    currentPresetId,
+    gainLevel,
+    toggle,
+    applyPreset,
+    pollGainLevel,
+    dispose,
+  } = useBassLayerStore();
+
+  const animFrameRef = useRef<number>(0);
+
+  // Poll gain level for visualization when playing
   useEffect(() => {
-    checkServerStatus();
-  }, [checkServerStatus]);
+    if (!isPlaying) return;
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
+    const poll = () => {
+      pollGainLevel();
+      animFrameRef.current = requestAnimationFrame(poll);
+    };
+    animFrameRef.current = requestAnimationFrame(poll);
 
-  // Handle file selection
-  const handleFileSelect = useCallback(async (file: File) => {
-    console.log('handleFileSelect called with file:', file.name, file.type, file.size);
-    
-    if (!file.type.startsWith('audio/')) {
-      alert('Please select an audio file');
-      return;
-    }
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [isPlaying, pollGainLevel]);
 
-    setUploadedFile(file);
-    setUploadState('loading');
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => dispose();
+  }, [dispose]);
 
-    try {
-      console.log('Starting decode...');
-      setUploadState('decoding');
-      const audioBuffer = await decodeAudioFile(file);
-      console.log('Decoded audio buffer:', audioBuffer.duration, 'seconds');
-      setOriginalBuffer(audioBuffer);
-      setUploadState('ready');
-      console.log('Upload state set to ready');
-    } catch (error) {
-      console.error('Error decoding audio:', error);
-      setUploadState('error');
-    }
-  }, [setUploadedFile, setOriginalBuffer, setUploadState]);
-
-  // Handle file input change
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-  }, [handleFileSelect]);
-
-  // Handle drag and drop
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZoneRef.current?.classList.add('drag-over');
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZoneRef.current?.classList.remove('drag-over');
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZoneRef.current?.classList.remove('drag-over');
-
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-  }, [handleFileSelect]);
-
-  // Handle process button
-  const handleProcess = useCallback(async () => {
-    console.log('handleProcess clicked!');
-    console.log('uploadState:', uploadState);
-    console.log('analysisState:', analysisState);
-    console.log('generationState:', generationState);
-    try {
-      await processAudio();
-      console.log('processAudio completed');
-    } catch (error) {
-      console.error('processAudio error:', error);
-    }
-  }, [processAudio, uploadState, analysisState, generationState]);
-
-  // Render upload zone
-  const renderUploadZone = () => (
-    <div
-      ref={dropZoneRef}
-      className="upload-zone"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        onChange={handleInputChange}
-        className="hidden"
-      />
-      
-      <div className="upload-icon">
-        <svg className="w-16 h-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M9 8l3-3 3 3" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M12 5v9" strokeLinecap="round" />
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-      
-      <p className="upload-text">
-        Drop your audio file here or click to browse
-      </p>
-      <p className="upload-hint">
-        Supports MP3, WAV, FLAC, AAC and other audio formats
-      </p>
-    </div>
-  );
-
-  // Render loading state
-  const renderLoading = () => (
-    <div className="loading-state">
-      <div className="spinner" />
-      <p className="loading-text">
-        {uploadState === 'loading' && 'Loading file...'}
-        {uploadState === 'decoding' && 'Decoding audio...'}
-      </p>
-    </div>
-  );
-
-  // Render file info
-  const renderFileInfo = () => (
-    <div className="file-info">
-      <div className="file-icon">
-        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M9 18V5l12-2v13" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="18" cy="16" r="3" />
-        </svg>
-      </div>
-      <div className="file-details">
-        <p className="file-name">{uploadedFile?.name}</p>
-        <p className="file-size">
-          {uploadedFile && formatFileSize(uploadedFile.size)}
-          {analysisResult && ` • ${formatDuration(analysisResult.duration)}`}
-        </p>
-      </div>
-      <button 
-        className="remove-file-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          reset();
-        }}
-        title="Remove file"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
-  );
-
-  // Render analysis results
-  const renderAnalysisResults = () => {
-    if (!analysisResult) return null;
-
-    return (
-      <div className="analysis-results">
-        <h3 className="results-title">Analysis Results</h3>
-        <div className="results-grid">
-          <div className="result-item">
-            <span className="result-label">Tempo</span>
-            <span className="result-value">{analysisResult.bpm} BPM</span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Beats Detected</span>
-            <span className="result-value">{analysisResult.beats.length}</span>
-          </div>
-          {analysisResult.detectedKey && (
-            <div className="result-item">
-              <span className="result-label">Key</span>
-              <span className="result-value">{analysisResult.detectedKey}</span>
-            </div>
-          )}
-          <div className="result-item">
-            <span className="result-label">Bass Energy</span>
-            <span className="result-value">
-              {(analysisResult.averageBassEnergy * 100).toFixed(1)}%
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Render progress
-  const renderProgress = () => {
-    if (!progress) return null;
-
-    return (
-      <div className="progress-section">
-        <div className="progress-header">
-          <span className="progress-stage">{progress.message}</span>
-          <span className="progress-percent">{Math.round(progress.progress)}%</span>
-        </div>
-        <div className="progress-bar">
-          <div 
-            className="progress-fill"
-            style={{ width: `${progress.progress}%` }}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Check if we can process
-  const canProcess = uploadState === 'ready' && analysisState !== 'analyzing' && generationState !== 'generating';
-  const isProcessing = analysisState === 'analyzing' || generationState === 'generating';
-
-  // Debug log
-  console.log('BassGenerator render:', { uploadState, analysisState, generationState, canProcess, isProcessing, hasOriginalBuffer: !!useBassStore.getState().originalBuffer });
+  const glowSize = 20 + gainLevel * 60;
+  const glowOpacity = 0.1 + gainLevel * 0.4;
+  const scale = 1 + gainLevel * 0.08;
 
   return (
-    <div className="bass-generator">
-      <div className="bass-generator-header">
-        <h2 className="bass-generator-title">Bass Track Generator</h2>
-        <p className="bass-generator-subtitle">
-          Upload a song to generate a bass track for your vibe table
-        </p>
-      </div>
+    <div className="space-y-6">
+      {/* Mode Toggle */}
+      <ModeToggle />
 
-      <div className="bass-generator-content">
-        {/* Upload Section */}
-        <section className="upload-section">
-          {uploadState === 'idle' && renderUploadZone()}
-          {(uploadState === 'loading' || uploadState === 'decoding') && renderLoading()}
-          {(uploadState === 'ready' || uploadState === 'error') && uploadedFile && (
-            <div className="file-ready">
-              {renderFileInfo()}
-              {uploadState === 'error' && (
-                <p className="error-message">Error decoding audio file. Please try another file.</p>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Processing Mode Toggle */}
-        {uploadState === 'ready' && generationState !== 'complete' && (
-          <div className="processing-mode-section">
-            <label className="mode-label">Processing Mode</label>
-            <div className="mode-toggle">
+      {/* Presets (manual mode only) */}
+      {mode === 'manual' && (
+        <section>
+          <h3 className="text-sm font-semibold text-[var(--color-text)] mb-3">Presets</h3>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {BASS_LAYER_PRESETS.map((preset) => (
               <button
-                className={`mode-btn ${processingMode === 'client' ? 'active' : ''}`}
-                onClick={() => setProcessingMode('client')}
-                disabled={isProcessing}
+                key={preset.id}
+                onClick={() => applyPreset(preset)}
+                className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  currentPresetId === preset.id
+                    ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow-lg'
+                    : 'bg-[var(--color-surface-light)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-light)]/80'
+                }`}
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                  <line x1="8" y1="21" x2="16" y2="21"/>
-                  <line x1="12" y1="17" x2="12" y2="21"/>
-                </svg>
-                Client-side
+                <span className="block font-semibold">{preset.name}</span>
+                <span className="block text-[10px] opacity-70">{preset.description}</span>
               </button>
-              <button
-                className={`mode-btn ${processingMode === 'server' ? 'active' : ''} ${!serverAvailable ? 'unavailable' : ''}`}
-                onClick={() => serverAvailable && setProcessingMode('server')}
-                disabled={isProcessing || !serverAvailable}
-                title={!serverAvailable ? 'Server not running. Start with: npm run dev:server' : 'Process on server (faster)'}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-                  <line x1="6" y1="6" x2="6.01" y2="6"/>
-                  <line x1="6" y1="18" x2="6.01" y2="18"/>
-                </svg>
-                Server-side
-                {serverAvailable && <span className="server-status online">●</span>}
-                {!serverAvailable && <span className="server-status offline">○</span>}
-              </button>
-            </div>
-            {!serverAvailable && processingMode === 'client' && (
-              <p className="mode-hint">
-                Start the server for faster processing: <code>npm run dev:server</code>
-              </p>
-            )}
-            {serverAvailable && processingMode === 'server' && (
-              <p className="mode-hint success">
-                ✓ Server connected - processing will be faster
-              </p>
-            )}
+            ))}
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Progress */}
-        {isProcessing && renderProgress()}
+      {/* Listen mode display */}
+      {mode === 'listen' && <ListenDisplay />}
 
-        {/* Process Button */}
-        {uploadState === 'ready' && generationState !== 'complete' && (
-          <button
-            className="process-btn"
-            onClick={() => {
-              console.log('Button clicked directly!');
-              handleProcess();
-            }}
-            disabled={!canProcess}
-            type="button"
-          >
-            {isProcessing ? (
-              <>
-                <div className="spinner-small" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-                Generate Bass Track
-              </>
-            )}
-          </button>
-        )}
+      {/* Play/Stop + Visualization */}
+      <section className="flex flex-col items-center py-8">
+        {/* Frequency display */}
+        <div className="text-center mb-6">
+          <span className="text-3xl font-bold text-[var(--color-text)] font-mono">
+            {config.frequency.toFixed(1)}
+          </span>
+          <span className="text-lg text-[var(--color-text-muted)] ml-1">Hz</span>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">
+            {mode === 'listen'
+              ? 'Listening to your music'
+              : `${config.musicalKey}1 \u00b7 ${config.rhythmPattern === 'continuous' ? 'Drone' : `${config.bpm} BPM`}`
+            }
+          </p>
+        </div>
 
-        {/* Analysis Results */}
-        {analysisState === 'complete' && renderAnalysisResults()}
+        {/* Big play/stop button with pulsing glow */}
+        <button
+          onClick={toggle}
+          className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center transition-transform duration-100"
+          style={{
+            background: isPlaying
+              ? 'linear-gradient(135deg, var(--color-primary), var(--color-accent))'
+              : 'var(--color-surface-light)',
+            boxShadow: isPlaying
+              ? `0 0 ${glowSize}px ${glowSize / 2}px rgba(99, 102, 241, ${glowOpacity})`
+              : 'none',
+            transform: `scale(${isPlaying ? scale : 1})`,
+          }}
+        >
+          {isPlaying ? (
+            // Stop icon
+            <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          ) : (
+            // Play icon
+            <svg className="w-10 h-10 text-[var(--color-text)]" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="8,5 20,12 8,19" />
+            </svg>
+          )}
+        </button>
 
-        {/* Controls (show after processing) */}
-        {generationState === 'complete' && (
-          <>
-            <BassControls />
-            <BassPreview />
-          </>
-        )}
-      </div>
-
-      <style>{`
-        .bass-generator {
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        .bass-generator-header {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
-
-        .bass-generator-title {
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: var(--color-text);
-          margin-bottom: 0.5rem;
-        }
-
-        .bass-generator-subtitle {
-          color: var(--color-text-muted);
-          font-size: 0.95rem;
-        }
-
-        .bass-generator-content {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
-        .upload-zone {
-          border: 2px dashed var(--color-border);
-          border-radius: 12px;
-          padding: 3rem 2rem;
-          text-align: center;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          background: var(--color-surface);
-        }
-
-        .upload-zone:hover,
-        .upload-zone.drag-over {
-          border-color: var(--color-primary);
-          background: var(--color-surface-light);
-        }
-
-        .upload-icon {
-          color: var(--color-text-muted);
-          margin-bottom: 1rem;
-          display: flex;
-          justify-content: center;
-        }
-
-        .upload-text {
-          font-size: 1.1rem;
-          color: var(--color-text);
-          margin-bottom: 0.5rem;
-        }
-
-        .upload-hint {
-          font-size: 0.85rem;
-          color: var(--color-text-muted);
-        }
-
-        .loading-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 3rem;
-          background: var(--color-surface);
-          border-radius: 12px;
-        }
-
-        .spinner {
-          width: 48px;
-          height: 48px;
-          border: 3px solid var(--color-border);
-          border-top-color: var(--color-primary);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        .spinner-small {
-          width: 20px;
-          height: 20px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-          margin-top: 1rem;
-          color: var(--color-text-muted);
-        }
-
-        .file-ready {
-          background: var(--color-surface);
-          border-radius: 12px;
-          padding: 1rem;
-        }
-
-        .file-info {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .file-icon {
-          color: var(--color-primary);
-        }
-
-        .file-details {
-          flex: 1;
-        }
-
-        .file-name {
-          font-weight: 600;
-          color: var(--color-text);
-          margin-bottom: 0.25rem;
-        }
-
-        .file-size {
-          font-size: 0.85rem;
-          color: var(--color-text-muted);
-        }
-
-        .remove-file-btn {
-          padding: 0.5rem;
-          border-radius: 8px;
-          background: transparent;
-          border: none;
-          color: var(--color-text-muted);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .remove-file-btn:hover {
-          background: var(--color-error);
-          color: white;
-        }
-
-        .error-message {
-          color: var(--color-error);
-          font-size: 0.9rem;
-          margin-top: 0.75rem;
-        }
-
-        .progress-section {
-          background: var(--color-surface);
-          border-radius: 12px;
-          padding: 1rem 1.25rem;
-        }
-
-        .progress-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 0.5rem;
-        }
-
-        .progress-stage {
-          font-size: 0.9rem;
-          color: var(--color-text);
-        }
-
-        .progress-percent {
-          font-size: 0.9rem;
-          color: var(--color-primary);
-          font-weight: 600;
-        }
-
-        .progress-bar {
-          height: 6px;
-          background: var(--color-surface-light);
-          border-radius: 3px;
-          overflow: hidden;
-        }
-
-        .progress-fill {
-          height: 100%;
-          background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
-          border-radius: 3px;
-          transition: width 0.2s ease;
-        }
-
-        .process-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          width: 100%;
-          padding: 1rem 1.5rem;
-          font-size: 1rem;
-          font-weight: 600;
-          background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-          color: white;
-          border: none;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .process-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 20px rgba(var(--color-primary-rgb), 0.4);
-        }
-
-        .process-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .analysis-results {
-          background: var(--color-surface);
-          border-radius: 12px;
-          padding: 1.25rem;
-        }
-
-        .results-title {
-          font-size: 1rem;
-          font-weight: 600;
-          color: var(--color-text);
-          margin-bottom: 1rem;
-        }
-
-        .results-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1rem;
-        }
-
-        .result-item {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-
-        .result-label {
-          font-size: 0.8rem;
-          color: var(--color-text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .result-value {
-          font-size: 1.1rem;
-          font-weight: 600;
-          color: var(--color-primary);
-        }
-
-        .hidden {
-          display: none;
-        }
-
-        .processing-mode-section {
-          background: var(--color-surface);
-          border-radius: 12px;
-          padding: 1.25rem;
-        }
-
-        .mode-label {
-          display: block;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--color-text);
-          margin-bottom: 0.75rem;
-        }
-
-        .mode-toggle {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .mode-btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          font-size: 0.9rem;
-          font-weight: 500;
-          background: var(--color-surface-light);
-          color: var(--color-text-muted);
-          border: 2px solid transparent;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .mode-btn:hover:not(:disabled) {
-          background: var(--color-surface-light);
-          color: var(--color-text);
-        }
-
-        .mode-btn.active {
-          background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-          color: white;
-          border-color: transparent;
-        }
-
-        .mode-btn.unavailable {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .mode-btn:disabled {
-          cursor: not-allowed;
-        }
-
-        .server-status {
-          font-size: 0.7rem;
-        }
-
-        .server-status.online {
-          color: #10b981;
-        }
-
-        .server-status.offline {
-          color: var(--color-text-muted);
-        }
-
-        .mode-hint {
-          margin-top: 0.75rem;
-          font-size: 0.8rem;
-          color: var(--color-text-muted);
-        }
-
-        .mode-hint code {
-          background: var(--color-surface-light);
-          padding: 0.2rem 0.5rem;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 0.75rem;
-        }
-
-        .mode-hint.success {
-          color: #10b981;
-        }
-
-        @media (max-width: 600px) {
-          .results-grid {
-            grid-template-columns: 1fr;
+        <p className="text-xs text-[var(--color-text-muted)] mt-4">
+          {isPlaying
+            ? mode === 'listen'
+              ? 'Listening \u2014 bass reacts to your music'
+              : 'Bass layer active \u2014 plays alongside your music'
+            : mode === 'listen'
+              ? 'Tap to start listening'
+              : 'Tap to start the bass layer'
           }
-          
-          .mode-toggle {
-            flex-direction: column;
-          }
-        }
-      `}</style>
+        </p>
+      </section>
+
+      {/* Controls (manual mode only) */}
+      {mode === 'manual' && (
+        <section className="bg-[var(--color-surface)] rounded-2xl p-4 sm:p-5">
+          <BassLayerControls />
+        </section>
+      )}
     </div>
   );
-}
-
-// Helper functions
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
