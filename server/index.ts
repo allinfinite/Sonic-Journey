@@ -81,10 +81,18 @@ app.get('/api/health', (req, res) => {
 
 // Generate journey endpoint
 app.post('/api/generate-journey', async (req: express.Request, res: express.Response) => {
-  const { prompt, duration } = req.body;
+  const { prompt: rawPrompt, duration } = req.body;
 
-  if (!prompt || typeof prompt !== 'string') {
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
     return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  const prompt = rawPrompt.trim();
+  if (prompt.length < 2) {
+    return res.status(400).json({ error: 'Prompt too short — minimum 2 characters' });
+  }
+  if (prompt.length > 2000) {
+    return res.status(400).json({ error: `Prompt too long — maximum 2000 characters (received ${prompt.length})` });
   }
 
   if (!duration || typeof duration !== 'number' || duration < 5 || duration > 180) {
@@ -113,10 +121,18 @@ app.post('/api/generate-journey', async (req: express.Request, res: express.Resp
 
 // Generate music endpoint (Lyria 2)
 app.post('/api/generate-music', async (req: express.Request, res: express.Response) => {
-  const { prompt, negativePrompt } = req.body;
+  const { prompt: rawPrompt, negativePrompt } = req.body;
 
-  if (!prompt || typeof prompt !== 'string') {
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
     return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  const prompt = rawPrompt.trim();
+  if (prompt.length < 2) {
+    return res.status(400).json({ error: 'Prompt too short — minimum 2 characters' });
+  }
+  if (prompt.length > 2000) {
+    return res.status(400).json({ error: `Prompt too long — maximum 2000 characters (received ${prompt.length})` });
   }
 
   console.log(`Generating music: "${prompt.substring(0, 80)}..."`);
@@ -142,20 +158,40 @@ app.post('/api/generate-music', async (req: express.Request, res: express.Respon
   }
 });
 
+// Prompt validation limits for URL query parameters
+const MIN_PROMPT_LENGTH = 2;
+const MAX_PROMPT_LENGTH = 1000;
+
 // Music streaming endpoint (SSE) - continuous real-time music via Lyria RealTime
 app.get('/api/music-stream', async (req: express.Request, res: express.Response) => {
-  const prompt = req.query.prompt as string;
+  const prompt = (req.query.prompt as string || '').trim();
   const vocalization = req.query.vocalization === 'true';
   if (!prompt) {
     return res.status(400).json({ error: 'prompt query parameter is required' });
   }
 
+  if (prompt.length < MIN_PROMPT_LENGTH) {
+    return res.status(400).json({
+      error: `Prompt too short — minimum ${MIN_PROMPT_LENGTH} characters`,
+      minLength: MIN_PROMPT_LENGTH,
+    });
+  }
+
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return res.status(400).json({
+      error: `Prompt too long — maximum ${MAX_PROMPT_LENGTH} characters (received ${prompt.length})`,
+      maxLength: MAX_PROMPT_LENGTH,
+      receivedLength: prompt.length,
+    });
+  }
+
   // Set up SSE headers
+  // Note: Access-Control-Allow-Origin is already set by the cors() middleware;
+  // do NOT duplicate it here or browsers will reject the response.
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
   });
 
   console.log(`Music stream started: "${prompt.substring(0, 80)}"${vocalization ? ' [vocalization]' : ''}`);
@@ -201,9 +237,17 @@ app.get('/api/music-stream', async (req: express.Request, res: express.Response)
 
 // Update music stream prompt (for phase transitions)
 app.post('/api/music-stream/prompt', async (req: express.Request, res: express.Response) => {
-  const { prompt, vocalization } = req.body;
-  if (!prompt || typeof prompt !== 'string') {
+  const { prompt: rawPrompt, vocalization } = req.body;
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
     return res.status(400).json({ error: 'prompt is required' });
+  }
+
+  const prompt = rawPrompt.trim();
+  if (prompt.length < MIN_PROMPT_LENGTH) {
+    return res.status(400).json({ error: `Prompt too short — minimum ${MIN_PROMPT_LENGTH} characters` });
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return res.status(400).json({ error: `Prompt too long — maximum ${MAX_PROMPT_LENGTH} characters (received ${prompt.length})` });
   }
 
   try {

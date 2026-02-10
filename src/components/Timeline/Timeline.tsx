@@ -126,12 +126,23 @@ export function Timeline() {
       ctx.lineWidth = index === selectedPhaseIndex ? 2 : 1;
       ctx.strokeRect(startX, padding.top, phaseWidth, graphHeight);
 
-      // Phase name
+      // Phase name (truncate to fit within phase width)
       ctx.fillStyle = COLORS.text;
-      ctx.font = index === selectedPhaseIndex ? 'bold 12px system-ui' : '12px system-ui';
+      const fontSize = phaseWidth < 60 ? 9 : phaseWidth < 100 ? 10 : 12;
+      ctx.font = index === selectedPhaseIndex ? `bold ${fontSize}px system-ui` : `${fontSize}px system-ui`;
       ctx.textAlign = 'center';
       const nameX = startX + phaseWidth / 2;
-      ctx.fillText(phase.name, nameX, padding.top - 10);
+      const maxNameWidth = phaseWidth - 4;
+      let displayName = phase.name;
+      if (ctx.measureText(displayName).width > maxNameWidth) {
+        while (displayName.length > 1 && ctx.measureText(displayName + '…').width > maxNameWidth) {
+          displayName = displayName.slice(0, -1);
+        }
+        displayName = displayName + '…';
+      }
+      if (maxNameWidth > 10) {
+        ctx.fillText(displayName, nameX, padding.top - 10);
+      }
 
       // Frequency curve
       const freqToY = (freq: number) => {
@@ -196,19 +207,21 @@ export function Timeline() {
       );
     }
 
-    // Legend
-    ctx.font = '11px system-ui';
+    // Legend (inside chart area, top-right)
+    const legendX = width - padding.right - 90;
+    const legendY = padding.top + 8;
+    ctx.font = '10px system-ui';
     ctx.textAlign = 'left';
-    
+
     ctx.fillStyle = COLORS.frequency;
-    ctx.fillRect(width - 140, 10, 12, 12);
+    ctx.fillRect(legendX, legendY, 10, 10);
     ctx.fillStyle = COLORS.text;
-    ctx.fillText('Frequency', width - 122, 20);
+    ctx.fillText('Frequency', legendX + 14, legendY + 9);
 
     ctx.fillStyle = COLORS.amplitude;
-    ctx.fillRect(width - 140, 28, 12, 12);
+    ctx.fillRect(legendX, legendY + 16, 10, 10);
     ctx.fillStyle = COLORS.text;
-    ctx.fillText('Intensity', width - 122, 38);
+    ctx.fillText('Intensity', legendX + 14, legendY + 25);
   }, [journey, selectedPhaseIndex, currentTime, isPlaying, totalDuration]);
 
   // Handle click to select phase or seek

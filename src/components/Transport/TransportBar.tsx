@@ -4,7 +4,6 @@
 
 import { useJourneyStore } from '../../stores/journeyStore';
 import { synthEngine } from '../../audio/SynthEngine';
-import { NovaControl } from '../Nova/NovaControl';
 
 export function TransportBar() {
   const {
@@ -48,7 +47,7 @@ export function TransportBar() {
   };
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl p-4 flex items-center gap-4">
+    <div className="bg-[var(--color-surface)] rounded-xl p-3 sm:p-4 flex flex-wrap items-center gap-3 sm:gap-4">
       {/* Transport buttons */}
       <div className="flex items-center gap-2">
         {/* Stop button */}
@@ -116,11 +115,6 @@ export function TransportBar() {
         {!isPlaying && !isPaused && (
           <span className="text-[var(--color-text-muted)]">Ready</span>
         )}
-      </div>
-
-      {/* Nova Control */}
-      <div className="border-l border-[var(--color-surface-light)] pl-4">
-        <NovaControl />
       </div>
 
       {/* Export button */}

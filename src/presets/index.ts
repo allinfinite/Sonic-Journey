@@ -23,6 +23,14 @@ import stressReleaseJson from './stress_release.json';
 import windDownJson from './wind_down.json';
 import ketamineJourneyJson from './ketamine_journey.json';
 import tantricConnectionJson from './tantric_connection.json';
+import quickPowerResetJson from './quick_power_reset.json';
+import creativeFlowStateJson from './creative_flow_state.json';
+import griefReleaseJson from './grief_release.json';
+import selfLoveActivationJson from './self_love_activation.json';
+import peakPerformanceJson from './peak_performance.json';
+import anxietyReliefJson from './anxiety_relief.json';
+import spiritualConnectionJson from './spiritual_connection.json';
+import manifestingAbundanceJson from './manifesting_abundance.json';
 import indexJson from './index.json';
 
 // Helper to convert preset JSON to proper JourneyConfig
@@ -72,6 +80,14 @@ export const presets: Record<string, JourneyConfig> = {
   wind_down: convertPreset(windDownJson as unknown as Record<string, unknown>),
   ketamine_journey: convertPreset(ketamineJourneyJson as unknown as Record<string, unknown>),
   tantric_connection: convertPreset(tantricConnectionJson as unknown as Record<string, unknown>),
+  quick_power_reset: convertPreset(quickPowerResetJson as unknown as Record<string, unknown>),
+  creative_flow_state: convertPreset(creativeFlowStateJson as unknown as Record<string, unknown>),
+  grief_release: convertPreset(griefReleaseJson as unknown as Record<string, unknown>),
+  self_love_activation: convertPreset(selfLoveActivationJson as unknown as Record<string, unknown>),
+  peak_performance: convertPreset(peakPerformanceJson as unknown as Record<string, unknown>),
+  anxiety_relief: convertPreset(anxietyReliefJson as unknown as Record<string, unknown>),
+  spiritual_connection: convertPreset(spiritualConnectionJson as unknown as Record<string, unknown>),
+  manifesting_abundance: convertPreset(manifestingAbundanceJson as unknown as Record<string, unknown>),
 };
 
 // Export preset index

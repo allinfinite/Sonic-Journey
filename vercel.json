@@ -1,12 +1,42 @@
 {
+  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/nova", "destination": "/nova/ble-web.html" }
-  ],
   "functions": {
-    "api/**/*.ts": {
+    "api/music-stream.ts": {
+      "maxDuration": 60
+    },
+    "api/generate-music.ts": {
+      "maxDuration": 60
+    },
+    "api/generate-journey.ts": {
       "maxDuration": 30
+    },
+    "api/health.ts": {
+      "maxDuration": 10
+    },
+    "api/music-stream/*.ts": {
+      "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(music-stream|generate-music|generate-journey|health)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    },
+    {
+      "source": "/api/music-stream",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-transform" },
+        { "key": "X-Accel-Buffering", "value": "no" }
+      ]
+    }
+  ]
 }

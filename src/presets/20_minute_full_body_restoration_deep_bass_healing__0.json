@@ -1,0 +1,127 @@
+{
+  "name": "Full Body Restoration and Deep Healing",
+  "description": "A comprehensive vibroacoustic journey for deep healing, body restoration, and integration.",
+  "category": "healing",
+  "duration_minutes": 20,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -14,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Grounding and Connection",
+      "duration": 3,
+      "frequency": {
+        "start": 28,
+        "end": 32
+      },
+      "support_frequency": {
+        "start": 32,
+        "end": 36
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.3
+      },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.05,
+      "fm_rate": 0.03,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "none"
+    },
+    {
+      "name": "Progressive Body Scan",
+      "duration": 7,
+      "frequency": {
+        "start": 32,
+        "end": 50
+      },
+      "support_frequency": {
+        "start": 36,
+        "end": 54
+      },
+      "amplitude": {
+        "start": 0.3,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4.5
+    },
+    {
+      "name": "Cellular Harmony",
+      "duration": 4,
+      "frequency": {
+        "start": 50,
+        "end": 55
+      },
+      "support_frequency": {
+        "start": 54,
+        "end": 59
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.15,
+      "fm_rate": 0.07,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4
+    },
+    {
+      "name": "Deep Restoration",
+      "duration": 3,
+      "frequency": {
+        "start": 55,
+        "end": 60
+      },
+      "support_frequency": {
+        "start": 59,
+        "end": 64
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4.5
+    },
+    {
+      "name": "Rising Light and Calm",
+      "duration": 3,
+      "frequency": {
+        "start": 60,
+        "end": 65
+      },
+      "support_frequency": {
+        "start": 64,
+        "end": 69
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.3
+      },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.05,
+      "fm_rate": 0.03,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "none"
+    }
+  ]
+}

@@ -5,4 +5,14 @@ output/
 *.md
 !README.md
 
+# iOS / Capacitor (not needed for web deploy)
+ios/
+android/
+
+# Large build artifacts
+*.xcarchive
+DerivedData/
+youtube-exports/
+nova/
+
 # Keep server/ directory - needed for API functions

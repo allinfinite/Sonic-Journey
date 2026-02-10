@@ -3,27 +3,7 @@
  */
 
 import type { JourneyConfig } from '../types/journey';
-
-// Determine API URL: use env var, or detect from current origin, or fallback to localhost
-function getApiUrl(): string {
-  // Use explicit env var if set (highest priority)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  // Allow runtime override via window.__API_URL__ (useful for deployments)
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    return (window as any).__API_URL__;
-  }
-  
-  // In production (Vercel), use same origin (API routes are on same domain)
-  if (import.meta.env.PROD) {
-    return window.location.origin;
-  }
-  
-  // Development fallback - try localhost server first
-  return 'http://localhost:3002';
-}
+import { getApiUrl } from '../utils/apiUrl';
 
 const API_URL = getApiUrl();
 

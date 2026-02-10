@@ -2,19 +2,7 @@
  * API client for AI-powered music generation via Google Lyria 2
  */
 
-// Reuse the same API URL detection logic
-function getApiUrl(): string {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    return (window as any).__API_URL__;
-  }
-  if (import.meta.env.PROD) {
-    return window.location.origin;
-  }
-  return 'http://localhost:3002';
-}
+import { getApiUrl } from '../utils/apiUrl';
 
 const API_URL = getApiUrl();
 

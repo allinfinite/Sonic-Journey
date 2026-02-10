@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useJourneyStore } from '../../stores/journeyStore';
 import { OfflineRenderer } from '../../audio/OfflineRenderer';
-import { encodeWavWithProgress, downloadBlob } from '../../audio/encoders/wav';
+import { encodeWavWithProgress } from '../../audio/encoders/wav';
 import { formatFileSize } from '../../audio/encoders/mp3';
 import type { ExportSettings } from '../../types/journey';
 
@@ -153,33 +153,17 @@ export function ExportDialog() {
   const handleDownload = async () => {
     if (!exportedBlob) return;
 
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
     try {
-      if (iOS && navigator.canShare) {
-        // Try Web Share on iOS
-        const file = new File([exportedBlob.blob], exportedBlob.filename, { type: 'audio/wav' });
-
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Sonic Journey Export'
-          });
-          setExportProgress({
-            phase: 'Complete',
-            stage: 'done',
-            progress: 100,
-            message: 'Shared successfully!',
-          });
-        } else {
-          throw new Error('Cannot share files');
-        }
-      } else {
-        // Desktop or non-iOS: use download
-        downloadBlob(exportedBlob.blob, exportedBlob.filename);
-      }
+      const { saveAndShareFile } = await import('../../utils/nativeExport');
+      await saveAndShareFile(exportedBlob.blob, exportedBlob.filename);
+      setExportProgress({
+        phase: 'Complete',
+        stage: 'done',
+        progress: 100,
+        message: 'Saved successfully!',
+      });
     } catch (err) {
-      console.error('Download/share failed:', err);
+      console.error('Save/share failed:', err);
       setError('Failed to save file. Please try again.');
     }
   };

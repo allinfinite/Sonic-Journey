@@ -1,0 +1,163 @@
+{
+  "name": "Deep Sleep - 30 Minutes",
+  "category": "sleep",
+  "description": "30-minute sleep induction with Delta binaural beats (0.5-4 Hz) for profound rest and restoration",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Twilight",
+      "start_min": 0,
+      "end_min": 5,
+      "duration": 5,
+      "frequency": {
+        "start": 52,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 48,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Drifting",
+      "start_min": 5,
+      "end_min": 10,
+      "duration": 5,
+      "frequency": {
+        "start": 42,
+        "end": 35
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 31
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.08,
+      "fm_rate": 0.04,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 4
+    },
+    {
+      "name": "Falling Deep",
+      "start_min": 10,
+      "end_min": 15,
+      "duration": 5,
+      "frequency": {
+        "start": 35,
+        "end": 28
+      },
+      "support_frequency": {
+        "start": 31,
+        "end": 24
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 15,
+      "fm_depth": 0.06,
+      "fm_rate": 0.03,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 2.5
+    },
+    {
+      "name": "Deep Sleep",
+      "start_min": 15,
+      "end_min": 20,
+      "duration": 5,
+      "frequency": {
+        "start": 28,
+        "end": 25
+      },
+      "support_frequency": {
+        "start": 24,
+        "end": 21
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.04,
+      "fm_rate": 0.02,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 1.5
+    },
+    {
+      "name": "Profound Rest",
+      "start_min": 20,
+      "end_min": 25,
+      "duration": 5,
+      "frequency": {
+        "start": 25,
+        "end": 26
+      },
+      "support_frequency": {
+        "start": 21,
+        "end": 22
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 20,
+      "fm_depth": 0.04,
+      "fm_rate": 0.02,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 1
+    },
+    {
+      "name": "Dream State",
+      "start_min": 25,
+      "end_min": 30,
+      "duration": 5,
+      "frequency": {
+        "start": 26,
+        "end": 24
+      },
+      "support_frequency": {
+        "start": 22,
+        "end": 20
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.05,
+      "fm_rate": 0.02,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 2
+    }
+  ]
+}

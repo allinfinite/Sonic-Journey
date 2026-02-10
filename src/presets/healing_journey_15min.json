@@ -1,0 +1,139 @@
+{
+  "name": "Healing Journey - 15 Minutes",
+  "category": "healing",
+  "description": "15-minute healing experience with Theta binaural beats (4-8 Hz) for emotional release and restoration",
+  "duration_minutes": 15,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Sacred Space",
+      "start_min": 0,
+      "end_min": 3,
+      "duration": 3,
+      "frequency": {
+        "start": 50,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 46,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    },
+    {
+      "name": "Opening Heart",
+      "start_min": 3,
+      "end_min": 6,
+      "duration": 3,
+      "frequency": {
+        "start": 42,
+        "end": 36
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 32
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 11,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Deep Release",
+      "start_min": 6,
+      "end_min": 9,
+      "duration": 3,
+      "frequency": {
+        "start": 36,
+        "end": 32
+      },
+      "support_frequency": {
+        "start": 32,
+        "end": 28
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 13,
+      "fm_depth": 0.08,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Restoration",
+      "start_min": 9,
+      "end_min": 12,
+      "duration": 3,
+      "frequency": {
+        "start": 32,
+        "end": 38
+      },
+      "support_frequency": {
+        "start": 28,
+        "end": 34
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Wholeness",
+      "start_min": 12,
+      "end_min": 15,
+      "duration": 3,
+      "frequency": {
+        "start": 38,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 34,
+        "end": 44
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    }
+  ]
+}

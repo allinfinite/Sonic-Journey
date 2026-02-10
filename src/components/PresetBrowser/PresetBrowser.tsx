@@ -66,10 +66,10 @@ export function PresetBrowser() {
       />
 
       {/* Modal */}
-      <div className="relative bg-[var(--color-surface)] rounded-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-2xl border border-white/10">
+      <div className="relative bg-[var(--color-surface)] rounded-2xl w-full max-w-4xl max-h-[85vh] mx-3 sm:mx-auto overflow-hidden shadow-2xl border border-white/10">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-xl font-semibold text-[var(--color-text)]">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
+          <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-text)]">
             Journey Library
           </h2>
           <button
@@ -83,51 +83,52 @@ export function PresetBrowser() {
           </button>
         </div>
 
-        <div className="flex h-[60vh]">
+        <div className="flex flex-col sm:flex-row h-[70vh] sm:h-[60vh]">
           {/* Categories sidebar */}
-          <div className="w-48 border-r border-white/10 p-4 space-y-2 overflow-y-auto">
+          <div className="flex sm:flex-col sm:w-48 border-b sm:border-b-0 sm:border-r border-white/10 p-3 sm:p-4 gap-1 sm:gap-0 sm:space-y-2 overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto shrink-0">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`whitespace-nowrap sm:w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                 selectedCategory === null
                   ? 'bg-[var(--color-primary)] text-white'
                   : 'text-[var(--color-text-muted)] hover:bg-white/5'
               }`}
             >
-              All Journeys
+              All
             </button>
             <button
               onClick={() => setSelectedCategory('my-journeys')}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`whitespace-nowrap sm:w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                 selectedCategory === 'my-journeys'
                   ? 'bg-[var(--color-primary)] text-white'
                   : 'text-[var(--color-text-muted)] hover:bg-white/5'
               }`}
             >
-              <span className="mr-2">💾</span>
-              My Journeys
+              <span className="mr-1 sm:mr-2">💾</span>
+              <span className="hidden sm:inline">My Journeys</span>
+              <span className="sm:hidden">Saved</span>
               {savedJourneys.length > 0 && (
-                <span className="ml-auto text-xs opacity-75">({savedJourneys.length})</span>
+                <span className="ml-1 sm:ml-auto text-xs opacity-75">({savedJourneys.length})</span>
               )}
             </button>
             {presetIndex.categories.map((category) => (
               <button
                 key={category.name}
                 onClick={() => setSelectedCategory(category.name)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                className={`whitespace-nowrap sm:w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                   selectedCategory === category.name
                     ? 'bg-[var(--color-primary)] text-white'
                     : 'text-[var(--color-text-muted)] hover:bg-white/5'
                 }`}
               >
-                <span className="mr-2">{category.icon}</span>
+                <span className="mr-1 sm:mr-2">{category.icon}</span>
                 {category.name}
               </button>
             ))}
           </div>
 
           {/* Presets grid */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0">
             {isShowingSaved ? (
               savedJourneys.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
@@ -142,18 +143,18 @@ export function PresetBrowser() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {savedJourneys.map((savedJourney) => (
                     <div
                       key={savedJourney.id}
-                      className="bg-[var(--color-surface-light)] rounded-xl p-4 border border-transparent hover:border-[var(--color-primary)]/50 transition-colors relative group"
+                      className="bg-[var(--color-surface-light)] rounded-xl p-3 sm:p-4 border border-transparent hover:border-[var(--color-primary)]/50 transition-colors relative group overflow-hidden"
                     >
                       <button
                         onClick={() => handleSavedJourneySelect(savedJourney)}
                         className="w-full text-left"
                       >
                         <div className="flex items-start justify-between mb-1">
-                          <h3 className="font-medium text-[var(--color-text)] pr-8">
+                          <h3 className="font-medium text-[var(--color-text)] pr-8 truncate">
                             {savedJourney.journey.name}
                           </h3>
                           <button
@@ -196,14 +197,14 @@ export function PresetBrowser() {
                 </div>
               )
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {filteredPresets.map(({ id, preset }) => (
                   <button
                     key={id}
                     onClick={() => handlePresetSelect(id)}
-                    className="bg-[var(--color-surface-light)] rounded-xl p-4 text-left hover:bg-[var(--color-surface-light)]/80 transition-colors border border-transparent hover:border-[var(--color-primary)]/50"
+                    className="bg-[var(--color-surface-light)] rounded-xl p-3 sm:p-4 text-left hover:bg-[var(--color-surface-light)]/80 transition-colors border border-transparent hover:border-[var(--color-primary)]/50 overflow-hidden"
                   >
-                    <h3 className="font-medium text-[var(--color-text)] mb-1">
+                    <h3 className="font-medium text-[var(--color-text)] mb-1 truncate">
                       {preset.name}
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)] mb-3 line-clamp-2">
@@ -211,14 +212,14 @@ export function PresetBrowser() {
                     </p>
                     <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
                       <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="10" />
                           <polyline points="12 6 12 12 16 14" />
                         </svg>
                         {preset.duration_minutes} min
                       </span>
                       <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M9 18V5l12-2v13" />
                           <circle cx="6" cy="18" r="3" />
                           <circle cx="18" cy="16" r="3" />

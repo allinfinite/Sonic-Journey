@@ -1,0 +1,113 @@
+{
+  "name": "Creative Flow State",
+  "category": "focus",
+  "description": "15-minute journey to unlock creative potential and sustained flow",
+  "duration_minutes": 15,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Opening",
+      "start_min": 0,
+      "end_min": 3,
+      "duration": 3,
+      "frequency": {
+        "start": 40,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 36,
+        "end": 44
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Flow Entry",
+      "start_min": 3,
+      "end_min": 7,
+      "duration": 4,
+      "frequency": {
+        "start": 48,
+        "end": 52
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 48
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.18,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    },
+    {
+      "name": "Deep Flow",
+      "start_min": 7,
+      "end_min": 12,
+      "duration": 5,
+      "frequency": {
+        "start": 52,
+        "end": 54
+      },
+      "support_frequency": {
+        "start": 48,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.2,
+      "fm_rate": 0.12,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 11
+    },
+    {
+      "name": "Integration",
+      "start_min": 12,
+      "end_min": 15,
+      "duration": 3,
+      "frequency": {
+        "start": 54,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 50,
+        "end": 40
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

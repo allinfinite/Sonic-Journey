@@ -277,10 +277,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const { prompt, duration } = req.body;
+  const { prompt: rawPrompt, duration } = req.body;
 
-  if (!prompt || typeof prompt !== 'string') {
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
     return res.status(400).json({ error: 'Prompt is required' });
+  }
+
+  const prompt = rawPrompt.trim();
+  if (prompt.length < 2) {
+    return res.status(400).json({ error: 'Prompt too short — minimum 2 characters' });
+  }
+  if (prompt.length > 2000) {
+    return res.status(400).json({ error: `Prompt too long — maximum 2000 characters (received ${prompt.length})` });
   }
 
   if (!duration || typeof duration !== 'number' || duration < 5 || duration > 180) {

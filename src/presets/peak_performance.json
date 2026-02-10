@@ -1,0 +1,113 @@
+{
+  "name": "Peak Performance",
+  "category": "energy",
+  "description": "10-minute pre-competition activation for athletes and high performers",
+  "duration_minutes": 10,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Centering",
+      "start_min": 0,
+      "end_min": 2,
+      "duration": 2,
+      "frequency": {
+        "start": 42,
+        "end": 50
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 45
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.12,
+      "fm_rate": 0.1,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Focus",
+      "start_min": 2,
+      "end_min": 5,
+      "duration": 3,
+      "frequency": {
+        "start": 50,
+        "end": 60
+      },
+      "support_frequency": {
+        "start": 45,
+        "end": 54
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 6,
+      "fm_depth": 0.18,
+      "fm_rate": 0.12,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 12
+    },
+    {
+      "name": "Activation",
+      "start_min": 5,
+      "end_min": 8,
+      "duration": 3,
+      "frequency": {
+        "start": 60,
+        "end": 68
+      },
+      "support_frequency": {
+        "start": 54,
+        "end": 62
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.78
+      },
+      "breath_cycle_sec": 5,
+      "fm_depth": 0.2,
+      "fm_rate": 0.15,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 13
+    },
+    {
+      "name": "Ready State",
+      "start_min": 8,
+      "end_min": 10,
+      "duration": 2,
+      "frequency": {
+        "start": 68,
+        "end": 55
+      },
+      "support_frequency": {
+        "start": 62,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.78,
+        "end": 0
+      },
+      "breath_cycle_sec": 6,
+      "fm_depth": 0.12,
+      "fm_rate": 0.1,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "name": "Stress Relief - 5 Minutes",
+  "category": "relaxation",
+  "description": "Rapid stress release with Theta binaural beats (4-8 Hz) for deep relaxation and mental calm",
+  "duration_minutes": 5,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Release",
+      "start_min": 0,
+      "end_min": 1.5,
+      "duration": 1.5,
+      "frequency": {
+        "start": 52,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 48,
+        "end": 40
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    },
+    {
+      "name": "Deep Calm",
+      "start_min": 1.5,
+      "end_min": 3.5,
+      "duration": 2,
+      "frequency": {
+        "start": 45,
+        "end": 38
+      },
+      "support_frequency": {
+        "start": 40,
+        "end": 33
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Peaceful Return",
+      "start_min": 3.5,
+      "end_min": 5,
+      "duration": 1.5,
+      "frequency": {
+        "start": 38,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 33,
+        "end": 40
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    }
+  ]
+}

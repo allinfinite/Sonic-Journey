@@ -1,0 +1,115 @@
+{
+  "name": "Creative Flow - 10 Minutes",
+  "category": "creativity",
+  "description": "10-minute creative enhancement with Alpha binaural beats (8-14 Hz) for flow state and inspiration",
+  "duration_minutes": 10,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Opening",
+      "start_min": 0,
+      "end_min": 2.5,
+      "duration": 2.5,
+      "frequency": {
+        "start": 45,
+        "end": 52
+      },
+      "support_frequency": {
+        "start": 40,
+        "end": 47
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.15,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    },
+    {
+      "name": "Flow Activation",
+      "start_min": 2.5,
+      "end_min": 5,
+      "duration": 2.5,
+      "frequency": {
+        "start": 52,
+        "end": 58
+      },
+      "support_frequency": {
+        "start": 47,
+        "end": 53
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 6,
+      "fm_depth": 0.18,
+      "fm_rate": 0.12,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 12
+    },
+    {
+      "name": "Peak Creativity",
+      "start_min": 5,
+      "end_min": 7.5,
+      "duration": 2.5,
+      "frequency": {
+        "start": 58,
+        "end": 60
+      },
+      "support_frequency": {
+        "start": 53,
+        "end": 55
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 5.5,
+      "fm_depth": 0.2,
+      "fm_rate": 0.14,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 13
+    },
+    {
+      "name": "Integration",
+      "start_min": 7.5,
+      "end_min": 10,
+      "duration": 2.5,
+      "frequency": {
+        "start": 60,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 55,
+        "end": 43
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    }
+  ]
+}

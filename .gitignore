@@ -27,3 +27,10 @@ output
 *.sln
 *.sw?
 .next/
+.vercel
+.env*.local
+
+# Capacitor iOS build artifacts
+ios/App/Pods/
+ios/App/App/public/
+ios/App/capacitor-cordova-ios-plugins/

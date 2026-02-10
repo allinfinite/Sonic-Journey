@@ -3,11 +3,9 @@
  * Enables live playback and modulation of vibroacoustic journeys
  */
 
-import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode, NovaPattern, MelodyStyle, MelodyScale, NoteDensity } from '../types/journey';
-import { ENTRAINMENT_PRESETS, NOVA_PATTERN_PRESETS } from '../types/journey';
-import { novaController, getNovaFrequencyForPhase } from './NovaController';
+import type { JourneyConfig, PhaseConfig, AudioParams, RhythmMode, EntrainmentMode } from '../types/journey';
+import { ENTRAINMENT_PRESETS } from '../types/journey';
 import { createPsychedelicEngine, type PsychedelicEngine, type EnhancementPreset } from './PsychedelicEngine';
-import { musicLayer } from './MusicLayer';
 
 // Map rhythm mode to entrainment mode (neural frequency bands)
 const rhythmToEntrainment: Record<RhythmMode, EntrainmentMode> = {
@@ -79,23 +77,6 @@ export class SynthEngine {
     carrierFreq: 200, // Default carrier frequency
   };
 
-  // Melody layer placeholder (melody engine not yet implemented)
-  private melody: {
-    enabled: boolean;
-    style: MelodyStyle;
-    scale: MelodyScale;
-    intensity: number;
-    density: NoteDensity;
-    currentPhaseName: string | null;
-  } = {
-    enabled: false,
-    style: 'mixed',
-    scale: 'pentatonic_minor',
-    intensity: 0.3,
-    density: 'moderate',
-    currentPhaseName: null,
-  };
-
   // Psychedelic audio enhancement engine
   private psychedelicEngine: PsychedelicEngine | null = null;
   private psychedelicEngineInitialized = false;
@@ -120,8 +101,6 @@ export class SynthEngine {
   private animationId: number | null = null;
   private manualOverride = false;
   private manualOverrideTimeout: ReturnType<typeof setTimeout> | null = null;
-  private lastNovaUpdateTime = 0; // Debounce Nova updates
-  private novaUpdateDebounceMs = 500; // Only update Nova every 500ms
 
   // Callbacks
   private onTimeUpdate?: (time: number) => void;
@@ -266,9 +245,6 @@ export class SynthEngine {
     this.binaural.right.gain.connect(this.binaural.right.panner);
     this.binaural.right.panner.connect(this.master);
 
-    // Initialize music layer (AI-generated music from Lyria 2)
-    musicLayer.init(this.ctx, this.master);
-
     // Start all oscillators
     this.foundation.osc.start();
     this.harmony.osc.start();
@@ -290,7 +266,6 @@ export class SynthEngine {
       this.currentParams.layers.harmony = config.layers.support_carrier !== false;
       this.currentParams.layers.atmosphere = config.layers.texture_layer === true;
       this.currentParams.layers.melody = config.layers.melody_layer === true;
-      musicLayer.setEnabled(this.currentParams.layers.melody);
     }
 
     if (this.isPlaying) {
@@ -354,9 +329,6 @@ export class SynthEngine {
     this.master?.gain.setValueAtTime(0, now);
 
     this.ctx.suspend();
-    
-    // Pause Nova flicker (but don't turn off light)
-    novaController.stopFlicker();
 
     // Pause binaural beats
     if (this.binaural.enabled && this.ctx) {
@@ -369,8 +341,6 @@ export class SynthEngine {
         this.binaural.right.gain.gain.setTargetAtTime(0, now, rampTime);
       }
     }
-
-    // Pause music layer (paused via AudioContext.suspend above)
 
     this.onPlayStateChange?.(false);
   }
@@ -396,9 +366,6 @@ export class SynthEngine {
     this.master?.gain.setValueAtTime(0, now);
     this.ctx.suspend();
 
-    // Stop Nova flicker
-    novaController.stopFlicker();
-
     // Stop binaural beats
     if (this.binaural.enabled && this.ctx) {
       const now = this.ctx.currentTime;
@@ -412,9 +379,6 @@ export class SynthEngine {
       this.binaural.enabled = false;
       this.binaural.beatFreq = null;
     }
-
-    // Stop music layer
-    musicLayer.stopStreaming();
 
     this.onTimeUpdate?.(0);
     this.onPlayStateChange?.(false);
@@ -608,22 +572,10 @@ export class SynthEngine {
 
     // Notify phase change
     this.onPhaseChange?.(phaseIndex, phase);
-    
-    // Update Nova flicker if enabled (debounced to prevent rapid calls)
-    const novaUpdateTime = Date.now();
-    if (novaUpdateTime - this.lastNovaUpdateTime >= this.novaUpdateDebounceMs) {
-      this.updateNovaFlicker(phase);
-      this.lastNovaUpdateTime = novaUpdateTime;
-    }
-    
+
     // Update binaural beats if enabled
     this.updateBinauralBeats(phase);
-    
-    // Update melody layer if enabled (async, fire-and-forget)
-    this.updateMelody(phase, freq, entrainmentMode).catch(() => {
-      // Silently handle errors
-    });
-    
+
     // Update psychedelic audio enhancement
     this.updatePsychedelicEngine(phase, freq).catch(() => {
       // Silently handle errors
@@ -740,217 +692,9 @@ export class SynthEngine {
           if (this.atmosphere.gain) {
             this.atmosphere.gain.gain.setTargetAtTime(layers.atmosphere ? 0.15 : 0, now, rampTime);
           }
-          // Music/melody layer
-          this.melody.enabled = layers.melody;
-          musicLayer.setEnabled(layers.melody);
           this.currentParams.layers = layers;
         }
         break;
-    }
-  }
-
-  /**
-   * Update Nova flicker based on current phase and progress
-   * Supports both simple steady flickering and complex patterns
-   * 
-   * Priority for flicker control:
-   * 1. nova_pattern (complex pattern with sweeps, bursts, etc.)
-   * 2. nova_frequency (explicit frequency override)
-   * 3. entrainment_rate (exact Hz from preset)
-   * 4. rhythm_mode/entrainment_mode (band mapping)
-   * 5. Interpolated from frequency range based on phase progress
-   */
-  private updateNovaFlicker(phase: PhaseConfig | null): void {
-    if (!phase || !this.journeyConfig) return;
-    
-    const novaState = novaController.getState();
-    if (!novaState.isConnected) return;
-    
-    // Check if Nova is enabled for journey and phase
-    const journeyNovaEnabled = this.journeyConfig.nova_enabled !== false;
-    const phaseNovaEnabled = phase.nova_enabled !== false;
-    
-    if (!journeyNovaEnabled || !phaseNovaEnabled) {
-      // Nova disabled for this phase, stop flicker
-      if (novaState.isFlickering) {
-        novaController.stopFlicker();
-      }
-      return;
-    }
-    
-    // Get phase duration in milliseconds
-    const phaseDurationMs = phase.duration * 60 * 1000;
-    
-    // Check if phase has a complex pattern
-    if (phase.nova_pattern) {
-      // Use pattern-based flicker
-      const pattern = phase.nova_pattern;
-      
-      // Only start pattern if not already running this pattern type
-      // or if pattern config changed
-      const patternChanged = novaState.patternType !== pattern.type ||
-                             novaState.currentPattern?.baseFrequency !== pattern.baseFrequency;
-      
-      if (!novaState.isFlickering || patternChanged) {
-        const currentState = novaController.getState();
-        if (!currentState.isConnected) return;
-        
-        novaController.startPattern(pattern, phaseDurationMs).catch(() => {
-          // Silently handle Nova pattern errors
-        });
-      }
-      return;
-    }
-    
-    // No explicit pattern - create one based on rhythm_mode for more interesting effects
-    // This automatically upgrades simple configs to use patterns
-    const autoPattern = this.createAutoPattern(phase, phaseDurationMs);
-    
-    if (autoPattern) {
-      // Only start if pattern changed or not flickering
-      const patternChanged = novaState.patternType !== autoPattern.type ||
-                             novaState.currentPattern?.baseFrequency !== autoPattern.baseFrequency;
-      
-      if (!novaState.isFlickering || patternChanged) {
-        const currentState = novaController.getState();
-        if (!currentState.isConnected) return;
-        
-        novaController.startPattern(autoPattern, phaseDurationMs).catch(() => {
-          // Silently handle Nova auto-pattern errors
-        });
-      }
-      return;
-    }
-    
-    // Fallback to simple frequency-based flicker
-    const { progress } = this.getCurrentPhase();
-    const novaFreq = getNovaFrequencyForPhase({
-      nova_frequency: phase.nova_frequency,
-      entrainment_rate: phase.entrainment_rate,
-      rhythm_mode: phase.rhythm_mode,
-      entrainment_mode: phase.entrainment_mode,
-      frequency: phase.frequency,
-    }, progress);
-    
-    // Skip if frequency is 0 (no flicker mode)
-    if (novaFreq <= 0) {
-      if (novaState.isFlickering) {
-        novaController.stopFlicker();
-      }
-      return;
-    }
-    
-    // Start or update flicker
-    const freqChanged = novaState.currentFrequency === null || 
-                        Math.abs(novaState.currentFrequency - novaFreq) > 0.5;
-    
-    if (!novaState.isFlickering || freqChanged) {
-      const currentState = novaController.getState();
-      if (!currentState.isConnected) return;
-
-      novaController.startFlicker(novaFreq).catch(() => {
-        // Silently handle Nova flicker errors
-      });
-    }
-  }
-
-  /**
-   * Create an automatic pattern based on rhythm_mode and phase characteristics
-   * This makes journeys more dynamic even without explicit pattern config
-   */
-  private createAutoPattern(phase: PhaseConfig, _phaseDurationMs: number): NovaPattern | null {
-    const mode = phase.rhythm_mode || phase.entrainment_mode;
-    
-    // Check if frequency range changes significantly (creates automatic sweep)
-    const freqChange = phase.frequency ? Math.abs(phase.frequency.end - phase.frequency.start) : 0;
-    
-    if (freqChange > 3) {
-      // Significant frequency change - create a sweep pattern
-      const startFreq = phase.frequency!.start <= 30 
-        ? Math.max(1, Math.round(phase.frequency!.start)) 
-        : 10;
-      const endFreq = phase.frequency!.end <= 30 
-        ? Math.max(1, Math.round(phase.frequency!.end)) 
-        : 10;
-      
-      return {
-        type: 'sweep',
-        baseFrequency: startFreq,
-        targetFrequency: endFreq,
-        randomVariation: 10, // Slight organic feel
-      };
-    }
-    
-    // Map rhythm mode to interesting patterns
-    switch (mode) {
-      case 'breathing':
-        // Breathing mode: wave pattern that flows with breath
-        return NOVA_PATTERN_PRESETS.organic_alpha || {
-          type: 'wave',
-          baseFrequency: 10,
-          waveAmplitude: 2,
-          wavePeriod: 12000, // Match typical breath cycle
-          randomVariation: 15,
-        };
-        
-      case 'heartbeat':
-        // Heartbeat mode: rhythmic heartbeat pattern
-        return NOVA_PATTERN_PRESETS.heartbeat || {
-          type: 'rhythm',
-          baseFrequency: 10,
-          rhythmPattern: [100, 200, 100, 600], // lub-dub
-        };
-        
-      case 'theta':
-        // Theta: gentle wave for meditation
-        return {
-          type: 'wave',
-          baseFrequency: phase.entrainment_rate || 6,
-          waveAmplitude: 1,
-          wavePeriod: 10000,
-          randomVariation: 10,
-        };
-        
-      case 'alpha':
-        // Alpha: wave pattern for visuals
-        return {
-          type: 'wave',
-          baseFrequency: phase.entrainment_rate || 10,
-          waveAmplitude: 1.5,
-          wavePeriod: 6000,
-          randomVariation: 15,
-        };
-        
-      case 'delta':
-        // Delta: very slow, gentle wave
-        return {
-          type: 'wave',
-          baseFrequency: phase.entrainment_rate || 3,
-          waveAmplitude: 0.5,
-          wavePeriod: 15000,
-          randomVariation: 20,
-        };
-        
-      case 'beta':
-        // Beta: burst pattern for focus/activation
-        return {
-          type: 'burst',
-          baseFrequency: phase.entrainment_rate || 15,
-          burstCount: 5,
-          burstGap: 400,
-        };
-        
-      case 'gamma':
-        // Gamma: steady with slight variation
-        return {
-          type: 'steady',
-          baseFrequency: 40,
-          randomVariation: 5,
-        };
-        
-      default:
-        // No special pattern needed - return null to use simple frequency
-        return null;
     }
   }
 
@@ -1070,86 +814,6 @@ export class SynthEngine {
   }
 
   /**
-   * Update melody/music layer based on current phase
-   * Uses MusicLayer to play AI-generated clips from Lyria 2
-   */
-  private async updateMelody(phase: PhaseConfig | null, _foundationFreq: number, _entrainmentMode: EntrainmentMode): Promise<void> {
-    if (!phase || !this.ctx) return;
-
-    // Check if melody/music is enabled for this phase
-    const melodyEnabled = (this.journeyConfig?.layers?.melody_layer === true) &&
-                          (phase.melody_enabled !== false);
-
-    if (!melodyEnabled) {
-      this.melody.enabled = false;
-      musicLayer.setEnabled(false);
-      return;
-    }
-
-    // Update melody state
-    this.melody.enabled = true;
-    this.melody.style = phase.melody_style || 'mixed';
-    this.melody.scale = phase.melody_scale || 'pentatonic_minor';
-    this.melody.intensity = phase.melody_intensity ?? 0.3;
-    this.melody.density = phase.melody_density || 'moderate';
-    this.melody.currentPhaseName = phase.name;
-
-    // Set music layer volume from melody intensity
-    musicLayer.setVolume(this.melody.intensity);
-    musicLayer.setEnabled(true);
-
-    // Build a prompt from phase parameters and start/update streaming
-    if (this.isPlaying) {
-      const basePrompt = this.buildMusicPromptFromPhase(phase);
-      const prompt = phase.music_prompt
-        ? `${phase.music_prompt}; ${basePrompt}`
-        : basePrompt;
-      musicLayer.startStreaming(prompt, phase.music_vocalization === true);
-    }
-  }
-
-  /**
-   * Build a music prompt from phase parameters for Lyria RealTime
-   */
-  private buildMusicPromptFromPhase(phase: PhaseConfig): string {
-    const avgFreq = (phase.frequency.start + phase.frequency.end) / 2;
-    const avgAmp = (phase.amplitude.start + phase.amplitude.end) / 2;
-    const freqTrend = phase.frequency.end - phase.frequency.start;
-
-    let mood: string;
-    if (avgFreq <= 32) mood = 'deeply meditative and hypnotic';
-    else if (avgFreq <= 40) mood = 'calm and grounding';
-    else if (avgFreq <= 50) mood = 'peaceful and centered';
-    else if (avgFreq <= 62) mood = 'gently uplifting';
-    else if (avgFreq <= 75) mood = 'warm and energizing';
-    else mood = 'bright and activating';
-
-    let movement = '';
-    if (freqTrend < -5) movement = ', gradually slowing down and deepening';
-    else if (freqTrend > 5) movement = ', gradually building and rising';
-
-    let dynamics: string;
-    if (avgAmp <= 0.3) dynamics = 'very soft and gentle';
-    else if (avgAmp <= 0.5) dynamics = 'soft';
-    else if (avgAmp <= 0.7) dynamics = 'moderate intensity';
-    else dynamics = 'full and present';
-
-    let style: string;
-    switch (phase.rhythm_mode) {
-      case 'breathing': style = 'slow ambient pads with a breathing feel'; break;
-      case 'heartbeat': style = 'rhythmic pulse with warm tones'; break;
-      case 'delta': style = 'deep drone with sub-bass textures'; break;
-      case 'theta': style = 'ethereal ambient with gentle evolving textures'; break;
-      case 'alpha': style = 'flowing ambient with soft melodic elements'; break;
-      case 'beta': style = 'focused minimal electronic with subtle rhythm'; break;
-      case 'gamma': style = 'sparkling ambient textures with high clarity'; break;
-      default: style = 'ambient instrumental with soft synthesizers'; break;
-    }
-
-    return [style, `${mood}${movement}`, dynamics].join(', ');
-  }
-
-  /**
    * Update psychedelic audio enhancement based on phase settings
    */
   private async updatePsychedelicEngine(phase: PhaseConfig | null, foundationFreq: number): Promise<void> {
@@ -1232,9 +896,6 @@ export class SynthEngine {
    */
   dispose(): void {
     this.stop();
-
-    // Dispose music layer
-    musicLayer.dispose();
 
     // Dispose psychedelic engine
     if (this.psychedelicEngine) {

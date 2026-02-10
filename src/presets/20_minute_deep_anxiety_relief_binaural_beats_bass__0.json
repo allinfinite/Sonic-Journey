@@ -1,0 +1,105 @@
+{
+  "name": "Deep Anxiety Relief and Nervous System Calming",
+  "description": "A therapeutic journey designed to alleviate anxiety and calm the nervous system, transitioning from an anxious state to deep relaxation and empowerment.",
+  "category": "healing",
+  "duration_minutes": 20,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -14,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Grounding and Settling",
+      "duration": 4,
+      "frequency": {
+        "start": 38,
+        "end": 36
+      },
+      "support_frequency": {
+        "start": 32,
+        "end": 30
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.3
+      },
+      "breath_cycle_sec": 15,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "none"
+    },
+    {
+      "name": "Tension Release",
+      "duration": 6,
+      "frequency": {
+        "start": 36,
+        "end": 34
+      },
+      "support_frequency": {
+        "start": 30,
+        "end": 28
+      },
+      "amplitude": {
+        "start": 0.3,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 15,
+      "fm_depth": 0.15,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Floating in Calm",
+      "duration": 6,
+      "frequency": {
+        "start": 34,
+        "end": 32
+      },
+      "support_frequency": {
+        "start": 28,
+        "end": 26
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.2,
+      "fm_rate": 0.1,
+      "rhythm_mode": "still",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Gentle Return to Center",
+      "duration": 4,
+      "frequency": {
+        "start": 32,
+        "end": 34
+      },
+      "support_frequency": {
+        "start": 26,
+        "end": 28
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.3
+      },
+      "breath_cycle_sec": 15,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "none"
+    }
+  ]
+}

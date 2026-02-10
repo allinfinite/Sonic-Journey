@@ -1,0 +1,211 @@
+{
+  "name": "Complete Transformation - 45 Minutes",
+  "category": "transformation",
+  "description": "45-minute complete transformation journey with full spectrum binaural beats for holistic mind-body-spirit renewal",
+  "duration_minutes": 45,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Awakening Power",
+      "start_min": 0,
+      "end_min": 6,
+      "duration": 6,
+      "frequency": {
+        "start": 42,
+        "end": 62
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 57
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 5,
+      "fm_depth": 0.18,
+      "fm_rate": 0.14,
+      "rhythm_mode": "beta",
+      "entrainment_mode": "beta",
+      "entrainment_rate": 18
+    },
+    {
+      "name": "Release Old Patterns",
+      "start_min": 6,
+      "end_min": 12,
+      "duration": 6,
+      "frequency": {
+        "start": 62,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 57,
+        "end": 43
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.14,
+      "fm_rate": 0.09,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    },
+    {
+      "name": "Heart Opening",
+      "start_min": 12,
+      "end_min": 18,
+      "duration": 6,
+      "frequency": {
+        "start": 48,
+        "end": 40
+      },
+      "support_frequency": {
+        "start": 43,
+        "end": 35
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.12,
+      "fm_rate": 0.07,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6.5
+    },
+    {
+      "name": "Deep Healing",
+      "start_min": 18,
+      "end_min": 24,
+      "duration": 6,
+      "frequency": {
+        "start": 40,
+        "end": 32
+      },
+      "support_frequency": {
+        "start": 35,
+        "end": 28
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.8
+      },
+      "breath_cycle_sec": 13,
+      "fm_depth": 0.09,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Soul Rebirth",
+      "start_min": 24,
+      "end_min": 30,
+      "duration": 6,
+      "frequency": {
+        "start": 32,
+        "end": 27
+      },
+      "support_frequency": {
+        "start": 28,
+        "end": 23
+      },
+      "amplitude": {
+        "start": 0.8,
+        "end": 0.85
+      },
+      "breath_cycle_sec": 16,
+      "fm_depth": 0.07,
+      "fm_rate": 0.04,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 2.5
+    },
+    {
+      "name": "Infinite Source",
+      "start_min": 30,
+      "end_min": 36,
+      "duration": 6,
+      "frequency": {
+        "start": 27,
+        "end": 29
+      },
+      "support_frequency": {
+        "start": 23,
+        "end": 25
+      },
+      "amplitude": {
+        "start": 0.85,
+        "end": 0.8
+      },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.06,
+      "fm_rate": 0.03,
+      "rhythm_mode": "delta",
+      "entrainment_mode": "delta",
+      "entrainment_rate": 1.5
+    },
+    {
+      "name": "Embodiment",
+      "start_min": 36,
+      "end_min": 42,
+      "duration": 6,
+      "frequency": {
+        "start": 29,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 25,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0.8,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.11,
+      "fm_rate": 0.07,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "New Beginning",
+      "start_min": 42,
+      "end_min": 45,
+      "duration": 3,
+      "frequency": {
+        "start": 42,
+        "end": 50
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 46
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0
+      },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.14,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 11
+    }
+  ]
+}

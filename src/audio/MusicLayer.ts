@@ -8,19 +8,28 @@ const CHANNELS = 2;
 const BYTES_PER_SAMPLE = 2; // 16-bit
 const BYTES_PER_FRAME = CHANNELS * BYTES_PER_SAMPLE;
 
-// Determine API URL (same pattern as musicApi.ts)
-function getApiUrl(): string {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+// Prompt length limits — must match server-side validation in api/music-stream.ts
+const MIN_PROMPT_LENGTH = 2;
+const MAX_PROMPT_LENGTH = 1000;
+
+/**
+ * Validate and sanitize a prompt for the music stream SSE URL query parameter.
+ * Returns the trimmed prompt, or null if invalid.
+ */
+function validatePrompt(prompt: string): string | null {
+  const trimmed = prompt.trim();
+  if (trimmed.length < MIN_PROMPT_LENGTH) {
+    console.warn(`MusicLayer: Prompt too short (${trimmed.length} chars, min ${MIN_PROMPT_LENGTH})`);
+    return null;
   }
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) { // eslint-disable-line @typescript-eslint/no-explicit-any
-    return (window as any).__API_URL__; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (trimmed.length > MAX_PROMPT_LENGTH) {
+    console.warn(`MusicLayer: Prompt too long (${trimmed.length} chars, max ${MAX_PROMPT_LENGTH}) — truncating`);
+    return trimmed.substring(0, MAX_PROMPT_LENGTH);
   }
-  if (typeof import.meta !== 'undefined' && import.meta.env?.PROD) {
-    return window.location.origin;
-  }
-  return 'http://localhost:3002';
+  return trimmed;
 }
+
+import { getApiUrl } from '../utils/apiUrl';
 
 /**
  * Decode base64 PCM (16-bit LE, stereo, 48kHz) directly into an AudioBuffer.
@@ -76,6 +85,8 @@ export class MusicLayer {
   private currentVocalization: boolean = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private wantStreaming: boolean = false; // true while we intend to keep streaming
+  private streamEndHandled: boolean = false; // prevents duplicate reconnects from onerror + onmessage race
+  private connectionId: number = 0; // monotonic counter to detect stale reconnects
 
   private volume: number = 0.3;
   private enabled: boolean = false;
@@ -98,26 +109,35 @@ export class MusicLayer {
   startStreaming(prompt: string, vocalization: boolean = false): void {
     if (!this.ctx || !this.gainNode || !this.enabled) return;
 
+    // Validate prompt before building URL query parameter
+    const validatedPrompt = validatePrompt(prompt);
+    if (!validatedPrompt) return;
+
     this.wantStreaming = true;
 
     // Already streaming with same prompt and vocalization — nothing to do
-    if (this.isStreaming && this.currentPrompt === prompt && this.currentVocalization === vocalization) return;
+    if (this.isStreaming && this.currentPrompt === validatedPrompt && this.currentVocalization === vocalization) return;
 
     // Already streaming — just update prompt/vocalization
     if (this.isStreaming) {
-      this.updatePrompt(prompt, vocalization);
+      this.updatePrompt(validatedPrompt, vocalization);
       return;
     }
 
     // Waiting for reconnect with same prompt — nothing to do
-    if (this.reconnectTimer && this.currentPrompt === prompt && this.currentVocalization === vocalization) return;
+    if (this.reconnectTimer && this.currentPrompt === validatedPrompt && this.currentVocalization === vocalization) return;
 
     this.currentVocalization = vocalization;
-    this.connectStream(prompt);
+    this.connectStream(validatedPrompt);
   }
 
   /**
-   * Open a new SSE connection to the music stream endpoint
+   * Open a new SSE connection to the music stream endpoint.
+   *
+   * IMPORTANT: EventSource has built-in auto-reconnect on network errors.
+   * We disable that by always closing on error and managing reconnection
+   * ourselves via handleStreamEnd(). This prevents duplicate connections
+   * when both onerror and onmessage({done}) fire during server shutdown.
    */
   private connectStream(prompt: string): void {
     if (!this.ctx || !this.gainNode) return;
@@ -134,17 +154,24 @@ export class MusicLayer {
 
     this.currentPrompt = prompt;
     this.isStreaming = true;
+    this.streamEndHandled = false;
     this.scheduledEndTime = this.ctx.currentTime + 0.1;
+
+    // Increment connection ID so stale callbacks from old connections are ignored
+    const thisConnectionId = ++this.connectionId;
 
     const apiUrl = getApiUrl();
     const params = new URLSearchParams({ prompt });
     if (this.currentVocalization) params.set('vocalization', 'true');
     const url = `${apiUrl}/api/music-stream?${params}`;
 
-    console.log(`MusicLayer: Starting stream...${this.currentVocalization ? ' [vocalization]' : ''}`);
+    console.log(`MusicLayer: Starting stream [conn=${thisConnectionId}]...${this.currentVocalization ? ' [vocalization]' : ''}`);
     this.eventSource = new EventSource(url);
 
     this.eventSource.onmessage = async (event) => {
+      // Ignore events from a stale connection
+      if (thisConnectionId !== this.connectionId) return;
+
       try {
         const data = JSON.parse(event.data);
 
@@ -154,12 +181,12 @@ export class MusicLayer {
 
         if (data.error) {
           console.error('MusicLayer: Stream error:', data.error);
-          this.handleStreamEnd();
+          this.handleStreamEnd(thisConnectionId);
         }
 
         if (data.done) {
           console.log('MusicLayer: Stream ended, will reconnect...');
-          this.handleStreamEnd();
+          this.handleStreamEnd(thisConnectionId);
         }
       } catch (e) {
         console.error('MusicLayer: Failed to process chunk:', e);
@@ -167,18 +194,36 @@ export class MusicLayer {
     };
 
     this.eventSource.onerror = () => {
-      if (!this.wantStreaming) {
-        this.eventSource?.close();
-        this.eventSource = null;
-      }
-      // Otherwise EventSource will auto-reconnect
+      // Ignore errors from a stale connection
+      if (thisConnectionId !== this.connectionId) return;
+
+      // ALWAYS close on error to prevent EventSource's built-in auto-reconnect.
+      // We manage reconnection ourselves in handleStreamEnd() to avoid
+      // duplicate connections (the core bug this fixes).
+      console.warn(`MusicLayer: SSE error [conn=${thisConnectionId}], closing to prevent auto-reconnect`);
+      this.handleStreamEnd(thisConnectionId);
     };
   }
 
   /**
-   * Handle the end of a stream — reconnect after a short delay if we still want music
+   * Handle the end of a stream — reconnect after a short delay if we still want music.
+   *
+   * Uses connectionId to ensure this is only processed once per connection,
+   * even if both onerror and onmessage({done}) fire (which happens when
+   * the server sends done + closes the connection simultaneously).
    */
-  private handleStreamEnd(): void {
+  private handleStreamEnd(forConnectionId?: number): void {
+    // Guard: if a connectionId is provided, only process if it matches current
+    if (forConnectionId !== undefined && forConnectionId !== this.connectionId) {
+      return;
+    }
+
+    // Guard: prevent duplicate handling (onerror + onmessage race)
+    if (this.streamEndHandled) {
+      return;
+    }
+    this.streamEndHandled = true;
+
     this.isStreaming = false;
     if (this.eventSource) {
       this.eventSource.close();
@@ -186,6 +231,10 @@ export class MusicLayer {
     }
 
     if (this.wantStreaming && this.currentPrompt) {
+      // Cancel any existing reconnect timer to prevent stacking
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+      }
       // Reconnect after a short gap to keep music continuous
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
@@ -245,11 +294,16 @@ export class MusicLayer {
    */
   async updatePrompt(prompt: string, vocalization?: boolean): Promise<void> {
     if (!this.isStreaming) return;
-    this.currentPrompt = prompt;
+
+    // Validate prompt before building URL query parameter
+    const validatedPrompt = validatePrompt(prompt);
+    if (!validatedPrompt) return;
+
+    this.currentPrompt = validatedPrompt;
     if (vocalization !== undefined) this.currentVocalization = vocalization;
 
     console.log('MusicLayer: Prompt updated, reconnecting stream...');
-    this.connectStream(prompt);
+    this.connectStream(validatedPrompt);
   }
 
   /**
@@ -258,6 +312,7 @@ export class MusicLayer {
   stopStreaming(): void {
     this.wantStreaming = false;
     this.isStreaming = false;
+    this.streamEndHandled = true; // prevent any pending callbacks from reconnecting
     this.currentPrompt = '';
 
     if (this.reconnectTimer) {

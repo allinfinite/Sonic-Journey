@@ -1,0 +1,91 @@
+{
+  "name": "Cellular Renewal - 5 Minutes",
+  "category": "healing",
+  "description": "5-minute deep cellular healing with Theta frequencies for tissue restoration and body renewal",
+  "duration_minutes": 5,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Body Awakening",
+      "start_min": 0,
+      "end_min": 1.5,
+      "duration": 1.5,
+      "frequency": {
+        "start": 48,
+        "end": 40
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 36
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    },
+    {
+      "name": "Deep Repair",
+      "start_min": 1.5,
+      "end_min": 3.5,
+      "duration": 2,
+      "frequency": {
+        "start": 40,
+        "end": 33
+      },
+      "support_frequency": {
+        "start": 36,
+        "end": 29
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.08,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Renewed Vitality",
+      "start_min": 3.5,
+      "end_min": 5,
+      "duration": 1.5,
+      "frequency": {
+        "start": 33,
+        "end": 45
+      },
+      "support_frequency": {
+        "start": 29,
+        "end": 41
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    }
+  ]
+}

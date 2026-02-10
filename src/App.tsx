@@ -96,15 +96,6 @@ function LayerToggles() {
         />
         <span className="text-sm text-[var(--color-text)]">Atmosphere</span>
       </label>
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={journey.layers.melody_layer === true}
-          onChange={() => handleToggle('melody_layer')}
-          className="w-4 h-4 rounded accent-[var(--color-primary)]"
-        />
-        <span className="text-sm text-[var(--color-text)]">Music</span>
-      </label>
     </div>
   );
 }
@@ -125,9 +116,9 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
   return (
     <header className="border-b border-white/10">
       {/* Top bar */}
-      <div className="flex items-center justify-between p-4 px-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 px-4 sm:p-4 sm:px-6 gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--color-text)] mb-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--color-text)] mb-0.5 sm:mb-1">
             Sonic Journey
           </h1>
           {mode === 'journey' && (
@@ -137,7 +128,7 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
           )}
           {mode === 'bass' && (
             <p className="text-sm text-[var(--color-text-muted)]">
-              Bass Track Generator for Vibe Table
+              Real-time Bass Layer for Your Music
             </p>
           )}
           {mode === 'basspad' && (
@@ -146,7 +137,7 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {mode === 'journey' && (
             <>
               <button
@@ -188,7 +179,7 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
       </div>
 
       {/* Mode tabs */}
-      <div className="flex px-6 gap-1">
+      <div className="flex px-3 sm:px-6 gap-1 overflow-x-auto">
         <button
           onClick={() => onModeChange('journey')}
           className={`px-5 py-3 text-sm font-medium rounded-t-lg transition-all relative ${
@@ -222,7 +213,7 @@ function Header({ mode, onModeChange }: { mode: AppMode; onModeChange: (mode: Ap
               <circle cx="6" cy="18" r="3" />
               <circle cx="18" cy="16" r="3" />
             </svg>
-            Bass Generator
+            Bass Layer
           </span>
           {mode === 'bass' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-primary)]" />
@@ -288,11 +279,16 @@ function App() {
     <div className="min-h-screen flex flex-col">
       <Header mode={mode} onModeChange={setMode} />
 
-      <main className="flex-1 p-6 space-y-6 bg-[var(--color-surface)]/30">
+      <main className="flex-1 p-3 sm:p-6 space-y-4 sm:space-y-6 bg-[var(--color-surface)]/30">
         {mode === 'journey' && <JourneyCreator />}
         {mode === 'bass' && <BassGenerator />}
         {mode === 'basspad' && <BassPad />}
       </main>
+
+      {/* Footer */}
+      <footer className="py-3 text-center text-xs text-[var(--color-text-muted)]/60">
+        A product of Humandalas Ltd
+      </footer>
 
       {/* Modals */}
       <PresetBrowser />

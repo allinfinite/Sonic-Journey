@@ -7,7 +7,8 @@
       "description": "Release tension and find peace",
       "presets": [
         "gentle_waves",
-        "stress_release"
+        "stress_release",
+        "anxiety_relief"
       ]
     },
     {
@@ -17,7 +18,9 @@
       "description": "Journey inward to stillness",
       "presets": [
         "inner_stillness",
-        "extended_practice"
+        "extended_practice",
+        "spiritual_connection",
+        "manifesting_abundance"
       ]
     },
     {
@@ -37,7 +40,9 @@
       "description": "Gentle activation and vitality",
       "presets": [
         "morning_rise",
-        "gentle_energize"
+        "gentle_energize",
+        "quick_power_reset",
+        "peak_performance"
       ]
     },
     {
@@ -47,7 +52,8 @@
       "description": "Sharpen concentration",
       "presets": [
         "clear_mind",
-        "deep_focus"
+        "deep_focus",
+        "creative_flow_state"
       ]
     },
     {
@@ -67,7 +73,9 @@
       "description": "Process and let go",
       "presets": [
         "gentle_release",
-        "heart_opening"
+        "heart_opening",
+        "grief_release",
+        "self_love_activation"
       ]
     },
     {

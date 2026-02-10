@@ -1,0 +1,137 @@
+{
+  "name": "Manifesting Abundance",
+  "category": "meditation",
+  "description": "30-minute vibrational alignment with prosperity and abundance consciousness",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Clearing",
+      "start_min": 0,
+      "end_min": 5,
+      "duration": 5,
+      "frequency": {
+        "start": 38,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 34,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.65
+      },
+      "breath_cycle_sec": 11,
+      "fm_depth": 0.12,
+      "fm_rate": 0.07,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    },
+    {
+      "name": "Worthiness",
+      "start_min": 5,
+      "end_min": 11,
+      "duration": 6,
+      "frequency": {
+        "start": 42,
+        "end": 48
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 44
+      },
+      "amplitude": {
+        "start": 0.65,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.15,
+      "fm_rate": 0.08,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    },
+    {
+      "name": "Receptivity",
+      "start_min": 11,
+      "end_min": 18,
+      "duration": 7,
+      "frequency": {
+        "start": 48,
+        "end": 52
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 48
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 8,
+      "fm_depth": 0.2,
+      "fm_rate": 0.1,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 11
+    },
+    {
+      "name": "Abundance Field",
+      "start_min": 18,
+      "end_min": 25,
+      "duration": 7,
+      "frequency": {
+        "start": 52,
+        "end": 54
+      },
+      "support_frequency": {
+        "start": 48,
+        "end": 50
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 7,
+      "fm_depth": 0.18,
+      "fm_rate": 0.11,
+      "rhythm_mode": "alpha",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 12
+    },
+    {
+      "name": "Anchoring",
+      "start_min": 25,
+      "end_min": 30,
+      "duration": 5,
+      "frequency": {
+        "start": 54,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 50,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 10,
+      "fm_depth": 0.1,
+      "fm_rate": 0.08,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "breathing"
+    }
+  ]
+}

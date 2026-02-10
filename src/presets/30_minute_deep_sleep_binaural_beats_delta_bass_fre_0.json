@@ -1,0 +1,129 @@
+{
+  "name": "Deep Sleep Induction Journey",
+  "description": "A journey to gently transition from wakefulness to deep sleep using progressive frequency descent and slow breathing rhythms.",
+  "category": "sleep",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -14,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": false
+  },
+  "phases": [
+    {
+      "name": "Alpha Transition",
+      "duration": 6,
+      "frequency": {
+        "start": 40,
+        "end": 35
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 39
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.1,
+      "fm_rate": 0.05,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "alpha",
+      "entrainment_rate": 10
+    },
+    {
+      "name": "Theta Descent",
+      "duration": 8,
+      "frequency": {
+        "start": 35,
+        "end": 30
+      },
+      "support_frequency": {
+        "start": 39,
+        "end": 34
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 18,
+      "fm_depth": 0.15,
+      "fm_rate": 0.04,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Delta Core",
+      "duration": 10,
+      "frequency": {
+        "start": 30,
+        "end": 28
+      },
+      "support_frequency": {
+        "start": 32,
+        "end": 30
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 20,
+      "fm_depth": 0.2,
+      "fm_rate": 0.03,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 2
+    },
+    {
+      "name": "Settling into Delta",
+      "duration": 4,
+      "frequency": {
+        "start": 28,
+        "end": 26
+      },
+      "support_frequency": {
+        "start": 30,
+        "end": 28
+      },
+      "amplitude": {
+        "start": 0.5,
+        "end": 0.3
+      },
+      "breath_cycle_sec": 20,
+      "fm_depth": 0.1,
+      "fm_rate": 0.02,
+      "rhythm_mode": "breathing",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 2
+    },
+    {
+      "name": "Gentle Fade Out",
+      "duration": 2,
+      "frequency": {
+        "start": 26,
+        "end": 25
+      },
+      "support_frequency": {
+        "start": 28,
+        "end": 27
+      },
+      "amplitude": {
+        "start": 0.3,
+        "end": 0.5
+      },
+      "breath_cycle_sec": 20,
+      "fm_depth": 0.05,
+      "fm_rate": 0.01,
+      "rhythm_mode": "still",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 1
+    }
+  ]
+}

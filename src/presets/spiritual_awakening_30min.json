@@ -1,0 +1,163 @@
+{
+  "name": "Spiritual Awakening - 30 Minutes",
+  "category": "spiritual",
+  "description": "30-minute spiritual journey with Theta binaural beats (4-8 Hz) for expanded consciousness and divine connection",
+  "duration_minutes": 30,
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "safety": {
+    "max_rms_db": -12,
+    "peak_ceiling_db": -1
+  },
+  "layers": {
+    "base_carrier": true,
+    "support_carrier": true,
+    "texture_layer": true
+  },
+  "phases": [
+    {
+      "name": "Sacred Entrance",
+      "start_min": 0,
+      "end_min": 5,
+      "duration": 5,
+      "frequency": {
+        "start": 48,
+        "end": 42
+      },
+      "support_frequency": {
+        "start": 44,
+        "end": 38
+      },
+      "amplitude": {
+        "start": 0,
+        "end": 0.6
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 7
+    },
+    {
+      "name": "Opening the Veil",
+      "start_min": 5,
+      "end_min": 10,
+      "duration": 5,
+      "frequency": {
+        "start": 42,
+        "end": 36
+      },
+      "support_frequency": {
+        "start": 38,
+        "end": 32
+      },
+      "amplitude": {
+        "start": 0.6,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 11,
+      "fm_depth": 0.1,
+      "fm_rate": 0.06,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6
+    },
+    {
+      "name": "Divine Presence",
+      "start_min": 10,
+      "end_min": 15,
+      "duration": 5,
+      "frequency": {
+        "start": 36,
+        "end": 33
+      },
+      "support_frequency": {
+        "start": 32,
+        "end": 29
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0.75
+      },
+      "breath_cycle_sec": 13,
+      "fm_depth": 0.08,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5
+    },
+    {
+      "name": "Unity Consciousness",
+      "start_min": 15,
+      "end_min": 20,
+      "duration": 5,
+      "frequency": {
+        "start": 33,
+        "end": 34
+      },
+      "support_frequency": {
+        "start": 29,
+        "end": 30
+      },
+      "amplitude": {
+        "start": 0.75,
+        "end": 0.8
+      },
+      "breath_cycle_sec": 14,
+      "fm_depth": 0.07,
+      "fm_rate": 0.04,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 4.5
+    },
+    {
+      "name": "Sacred Download",
+      "start_min": 20,
+      "end_min": 25,
+      "duration": 5,
+      "frequency": {
+        "start": 34,
+        "end": 37
+      },
+      "support_frequency": {
+        "start": 30,
+        "end": 33
+      },
+      "amplitude": {
+        "start": 0.8,
+        "end": 0.7
+      },
+      "breath_cycle_sec": 12,
+      "fm_depth": 0.09,
+      "fm_rate": 0.05,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 5.5
+    },
+    {
+      "name": "Return to Earth",
+      "start_min": 25,
+      "end_min": 30,
+      "duration": 5,
+      "frequency": {
+        "start": 37,
+        "end": 46
+      },
+      "support_frequency": {
+        "start": 33,
+        "end": 42
+      },
+      "amplitude": {
+        "start": 0.7,
+        "end": 0
+      },
+      "breath_cycle_sec": 9,
+      "fm_depth": 0.12,
+      "fm_rate": 0.08,
+      "rhythm_mode": "theta",
+      "entrainment_mode": "theta",
+      "entrainment_rate": 6.5
+    }
+  ]
+}

@@ -25,9 +25,17 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt } = req.body || {};
-  if (!prompt || typeof prompt !== 'string') {
+  const { prompt: rawPrompt } = req.body || {};
+  if (!rawPrompt || typeof rawPrompt !== 'string') {
     return res.status(400).json({ error: 'prompt is required' });
+  }
+
+  const prompt = rawPrompt.trim();
+  if (prompt.length < 2) {
+    return res.status(400).json({ error: 'Prompt too short — minimum 2 characters' });
+  }
+  if (prompt.length > 1000) {
+    return res.status(400).json({ error: `Prompt too long — maximum 1000 characters (received ${prompt.length})` });
   }
 
   console.log(
