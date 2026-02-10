@@ -206,7 +206,7 @@ export function LandingPage() {
             ))}
           </div>
           {/* Bottom row: 3 cards, centered */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[75%] mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:max-w-[75%] mx-auto">
             {features.slice(4).map((feature) => (
               <div
                 key={feature.title}
